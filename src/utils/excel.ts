@@ -1,29 +1,52 @@
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Trip } from '../types';
 import { getCategoryName } from './categories';
 import { formatDate, formatCurrency } from './helpers';
 import { calculateBalances, calculateSettlements } from './settlement';
 
-export const exportToExcel = (trip: Trip): void => {
-  const workbook = XLSX.utils.book_new();
+export const exportToExcel = async (trip: Trip): Promise<void> => {
+  const workbook = new ExcelJS.Workbook();
+  
+  workbook.creator = 'TravelSplit';
+  workbook.created = new Date();
 
   // Sheet 1: Summary
-  const summaryData = [
-    ['Trip Name', trip.name],
-    ['Description', trip.description],
-    ['Currency', trip.currency],
-    ['Start Date', formatDate(trip.startDate)],
-    ['End Date', formatDate(trip.endDate)],
-    ['Total Expenses', formatCurrency(trip.expenses.reduce((sum, e) => sum + e.amount, 0), trip.currency)],
-    ['Number of Expenses', trip.expenses.length],
-    ['Number of People', trip.people.length],
+  const summarySheet = workbook.addWorksheet('Summary');
+  summarySheet.columns = [
+    { header: 'Field', key: 'field', width: 20 },
+    { header: 'Value', key: 'value', width: 40 }
   ];
-  const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-  XLSX.utils.book_append_sheet(workbook, summarySheet, 'Summary');
+  
+  summarySheet.addRows([
+    { field: 'Trip Name', value: trip.name },
+    { field: 'Description', value: trip.description },
+    { field: 'Currency', value: trip.currency },
+    { field: 'Start Date', value: formatDate(trip.startDate) },
+    { field: 'End Date', value: formatDate(trip.endDate) },
+    { field: 'Total Expenses', value: formatCurrency(trip.expenses.reduce((sum, e) => sum + e.amount, 0), trip.currency) },
+    { field: 'Number of Expenses', value: trip.expenses.length },
+    { field: 'Number of People', value: trip.people.length },
+  ]);
+  
+  // Style header row
+  summarySheet.getRow(1).font = { bold: true };
+  summarySheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0EA5E9' }
+  };
 
   // Sheet 2: All Expenses
-  const expensesData = [
-    ['Date', 'Description', 'Category', 'Amount', 'Paid By', 'Split Method', 'Split Details', 'Notes']
+  const expensesSheet = workbook.addWorksheet('All Expenses');
+  expensesSheet.columns = [
+    { header: 'Date', key: 'date', width: 15 },
+    { header: 'Description', key: 'description', width: 30 },
+    { header: 'Category', key: 'category', width: 20 },
+    { header: 'Amount', key: 'amount', width: 15 },
+    { header: 'Paid By', key: 'paidBy', width: 15 },
+    { header: 'Split Method', key: 'splitMethod', width: 15 },
+    { header: 'Split Details', key: 'splitDetails', width: 40 },
+    { header: 'Notes', key: 'notes', width: 30 }
   ];
   
   trip.expenses.forEach(expense => {
@@ -33,24 +56,32 @@ export const exportToExcel = (trip: Trip): void => {
       return `${person?.name}: ${formatCurrency(split.amount, trip.currency)}`;
     }).join(', ');
     
-    expensesData.push([
-      formatDate(expense.date),
-      expense.description,
-      getCategoryName(expense.category),
-      expense.amount.toString(),
-      payer?.name || 'Unknown',
-      expense.splitMethod,
-      splitDetails,
-      expense.notes || ''
-    ]);
+    expensesSheet.addRow({
+      date: formatDate(expense.date),
+      description: expense.description,
+      category: getCategoryName(expense.category),
+      amount: expense.amount,
+      paidBy: payer?.name || 'Unknown',
+      splitMethod: expense.splitMethod,
+      splitDetails: splitDetails,
+      notes: expense.notes || ''
+    });
   });
   
-  const expensesSheet = XLSX.utils.aoa_to_sheet(expensesData);
-  XLSX.utils.book_append_sheet(workbook, expensesSheet, 'All Expenses');
+  expensesSheet.getRow(1).font = { bold: true };
+  expensesSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0EA5E9' }
+  };
 
   // Sheet 3: Per-Person Breakdown
-  const personData = [
-    ['Person', 'Total Paid', 'Total Owed', 'Net Balance']
+  const personSheet = workbook.addWorksheet('Per-Person Breakdown');
+  personSheet.columns = [
+    { header: 'Person', key: 'person', width: 20 },
+    { header: 'Total Paid', key: 'paid', width: 15 },
+    { header: 'Total Owed', key: 'owed', width: 15 },
+    { header: 'Net Balance', key: 'balance', width: 15 }
   ];
   
   const balances = calculateBalances(trip);
@@ -66,16 +97,20 @@ export const exportToExcel = (trip: Trip): void => {
     
     const balance = balances.get(person.id) || 0;
     
-    personData.push([
-      person.name,
-      paid.toString(),
-      owed.toString(),
-      balance.toString()
-    ]);
+    personSheet.addRow({
+      person: person.name,
+      paid: paid,
+      owed: owed,
+      balance: balance
+    });
   });
   
-  const personSheet = XLSX.utils.aoa_to_sheet(personData);
-  XLSX.utils.book_append_sheet(workbook, personSheet, 'Per-Person Breakdown');
+  personSheet.getRow(1).font = { bold: true };
+  personSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0EA5E9' }
+  };
 
   // Sheet 4: Category Breakdown
   const categoryTotals = new Map<string, number>();
@@ -84,43 +119,64 @@ export const exportToExcel = (trip: Trip): void => {
     categoryTotals.set(expense.category, current + expense.amount);
   });
   
-  const categoryData = [
-    ['Category', 'Total Amount', 'Percentage']
+  const categorySheet = workbook.addWorksheet('Category Breakdown');
+  categorySheet.columns = [
+    { header: 'Category', key: 'category', width: 30 },
+    { header: 'Total Amount', key: 'amount', width: 15 },
+    { header: 'Percentage', key: 'percentage', width: 15 }
   ];
   
   const totalAmount = trip.expenses.reduce((sum, e) => sum + e.amount, 0);
   
   Array.from(categoryTotals.entries()).forEach(([category, amount]) => {
     const percentage = totalAmount > 0 ? (amount / totalAmount * 100).toFixed(1) + '%' : '0%';
-    categoryData.push([
-      getCategoryName(category as any),
-      amount.toString(),
-      percentage
-    ]);
+    categorySheet.addRow({
+      category: getCategoryName(category as any),
+      amount: amount,
+      percentage: percentage
+    });
   });
   
-  const categorySheet = XLSX.utils.aoa_to_sheet(categoryData);
-  XLSX.utils.book_append_sheet(workbook, categorySheet, 'Category Breakdown');
+  categorySheet.getRow(1).font = { bold: true };
+  categorySheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0EA5E9' }
+  };
 
   // Sheet 5: Settlement
   const settlements = calculateSettlements(trip);
-  const settlementData = [
-    ['From', 'To', 'Amount']
+  const settlementSheet = workbook.addWorksheet('Settlement');
+  settlementSheet.columns = [
+    { header: 'From', key: 'from', width: 20 },
+    { header: 'To', key: 'to', width: 20 },
+    { header: 'Amount', key: 'amount', width: 15 }
   ];
   
   settlements.forEach(settlement => {
     const fromPerson = trip.people.find(p => p.id === settlement.from);
     const toPerson = trip.people.find(p => p.id === settlement.to);
-    settlementData.push([
-      fromPerson?.name || 'Unknown',
-      toPerson?.name || 'Unknown',
-      settlement.amount.toString()
-    ]);
+    settlementSheet.addRow({
+      from: fromPerson?.name || 'Unknown',
+      to: toPerson?.name || 'Unknown',
+      amount: settlement.amount
+    });
   });
   
-  const settlementSheet = XLSX.utils.aoa_to_sheet(settlementData);
-  XLSX.utils.book_append_sheet(workbook, settlementSheet, 'Settlement');
+  settlementSheet.getRow(1).font = { bold: true };
+  settlementSheet.getRow(1).fill = {
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb: 'FF0EA5E9' }
+  };
 
   // Write the file
-  XLSX.writeFile(workbook, `${trip.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `${trip.name.replace(/[^a-z0-9]/gi, '_')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+  link.click();
+  window.URL.revokeObjectURL(url);
 };

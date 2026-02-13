@@ -14,9 +14,9 @@
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.20.0",
     "recharts": "^2.10.3",
-    "xlsx": "^0.18.5",
+    "exceljs": "^4.4.0",
     "tesseract.js": "^5.0.4",
-    "pdfjs-dist": "^3.11.174",
+    "pdfjs-dist": "^4.2.67",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

@@ -29,13 +29,13 @@ const ExportPage: React.FC = () => {
     loadTrip();
   }, [id, navigate]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (!trip) return;
 
     setIsExporting(true);
     
     try {
-      exportToExcel(trip);
+      await exportToExcel(trip);
       setToast({ message: 'Excel file downloaded successfully!', type: 'success' });
     } catch (error) {
       console.error('Export error:', error);
