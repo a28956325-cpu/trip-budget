@@ -1,0 +1,55 @@
+export type ExpenseCategory = 'food' | 'clothing' | 'accommodation' | 'transport' | 'education' | 'entertainment' | 'other';
+
+export interface Person {
+  id: string;
+  name: string;
+  color: string;
+}
+
+export interface Split {
+  personId: string;
+  amount: number;
+  percentage?: number;
+}
+
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  currency: string;
+  date: string;
+  category: ExpenseCategory;
+  paidBy: string;
+  splitMethod: 'equal' | 'exact' | 'percentage';
+  splits: Split[];
+  receiptUrl?: string;
+  receiptType?: 'image' | 'pdf';
+  ocrText?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface Trip {
+  id: string;
+  name: string;
+  description: string;
+  currency: string;
+  startDate: string;
+  endDate: string;
+  createdAt: string;
+  people: Person[];
+  expenses: Expense[];
+}
+
+export interface Settlement {
+  from: string;
+  to: string;
+  amount: number;
+}
+
+export interface CategoryInfo {
+  id: ExpenseCategory;
+  name: string;
+  emoji: string;
+  color: string;
+}
