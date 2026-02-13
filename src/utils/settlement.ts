@@ -1,4 +1,4 @@
-import { Trip, Person, Settlement } from '../types';
+import { Trip, Settlement } from '../types';
 
 interface Balance {
   personId: string;

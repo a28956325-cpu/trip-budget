@@ -37,7 +37,7 @@ export const exportToExcel = (trip: Trip): void => {
       formatDate(expense.date),
       expense.description,
       getCategoryName(expense.category),
-      expense.amount,
+      expense.amount.toString(),
       payer?.name || 'Unknown',
       expense.splitMethod,
       splitDetails,
@@ -68,9 +68,9 @@ export const exportToExcel = (trip: Trip): void => {
     
     personData.push([
       person.name,
-      paid,
-      owed,
-      balance
+      paid.toString(),
+      owed.toString(),
+      balance.toString()
     ]);
   });
   
@@ -94,7 +94,7 @@ export const exportToExcel = (trip: Trip): void => {
     const percentage = totalAmount > 0 ? (amount / totalAmount * 100).toFixed(1) + '%' : '0%';
     categoryData.push([
       getCategoryName(category as any),
-      amount,
+      amount.toString(),
       percentage
     ]);
   });
@@ -114,7 +114,7 @@ export const exportToExcel = (trip: Trip): void => {
     settlementData.push([
       fromPerson?.name || 'Unknown',
       toPerson?.name || 'Unknown',
-      settlement.amount
+      settlement.amount.toString()
     ]);
   });
   

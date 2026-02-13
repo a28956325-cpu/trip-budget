@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Person, Split } from '../types';
 import PersonAvatar from './PersonAvatar';
 
