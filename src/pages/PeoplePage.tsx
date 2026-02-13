@@ -19,19 +19,19 @@ const PeoplePage: React.FC = () => {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
-    loadTrip();
-  }, [id]);
-
-  const loadTrip = () => {
-    if (id) {
-      const loadedTrip = storage.getTrip(id);
-      if (loadedTrip) {
-        setTrip(loadedTrip);
-      } else {
-        navigate('/');
+    const loadTrip = () => {
+      if (id) {
+        const loadedTrip = storage.getTrip(id);
+        if (loadedTrip) {
+          setTrip(loadedTrip);
+        } else {
+          navigate('/');
+        }
       }
-    }
-  };
+    };
+    
+    loadTrip();
+  }, [id, navigate]);
 
   const handleAddPerson = (e: React.FormEvent) => {
     e.preventDefault();

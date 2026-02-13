@@ -24,62 +24,60 @@ const ExpensesList: React.FC = () => {
   });
 
   useEffect(() => {
+    const loadTrip = () => {
+      if (id) {
+        const loadedTrip = storage.getTrip(id);
+        if (loadedTrip) {
+          setTrip(loadedTrip);
+        } else {
+          navigate('/');
+        }
+      }
+    };
+    
     loadTrip();
-  }, [id]);
+  }, [id, navigate]);
 
   useEffect(() => {
     if (trip) {
+      const applyFilters = () => {
+        let expenses = [...trip.expenses];
+
+        // Filter by category
+        if (filters.category !== 'all') {
+          expenses = expenses.filter(e => e.category === filters.category);
+        }
+
+        // Filter by person
+        if (filters.person !== 'all') {
+          expenses = expenses.filter(e => 
+            e.paidBy === filters.person || 
+            e.splits.some(s => s.personId === filters.person)
+          );
+        }
+
+        // Sort
+        switch (filters.sortBy) {
+          case 'date-desc':
+            expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            break;
+          case 'date-asc':
+            expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+            break;
+          case 'amount-desc':
+            expenses.sort((a, b) => b.amount - a.amount);
+            break;
+          case 'amount-asc':
+            expenses.sort((a, b) => a.amount - b.amount);
+            break;
+        }
+
+        setFilteredExpenses(expenses);
+      };
+      
       applyFilters();
     }
   }, [trip, filters]);
-
-  const loadTrip = () => {
-    if (id) {
-      const loadedTrip = storage.getTrip(id);
-      if (loadedTrip) {
-        setTrip(loadedTrip);
-      } else {
-        navigate('/');
-      }
-    }
-  };
-
-  const applyFilters = () => {
-    if (!trip) return;
-
-    let expenses = [...trip.expenses];
-
-    // Filter by category
-    if (filters.category !== 'all') {
-      expenses = expenses.filter(e => e.category === filters.category);
-    }
-
-    // Filter by person
-    if (filters.person !== 'all') {
-      expenses = expenses.filter(e => 
-        e.paidBy === filters.person || 
-        e.splits.some(s => s.personId === filters.person)
-      );
-    }
-
-    // Sort
-    switch (filters.sortBy) {
-      case 'date-desc':
-        expenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        break;
-      case 'date-asc':
-        expenses.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        break;
-      case 'amount-desc':
-        expenses.sort((a, b) => b.amount - a.amount);
-        break;
-      case 'amount-asc':
-        expenses.sort((a, b) => a.amount - b.amount);
-        break;
-    }
-
-    setFilteredExpenses(expenses);
-  };
 
   const handleDeleteExpense = (expenseId: string) => {
     if (!trip) return;

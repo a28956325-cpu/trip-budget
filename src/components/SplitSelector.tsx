@@ -49,9 +49,15 @@ const SplitSelector: React.FC<SplitSelectorProps> = ({
   React.useEffect(() => {
     if (splitMethod === 'equal' && splits.length > 0 && totalAmount > 0) {
       const amountPerPerson = totalAmount / splits.length;
-      onSplitsChange(splits.map(s => ({ ...s, amount: parseFloat(amountPerPerson.toFixed(2)) })));
+      const expectedAmount = parseFloat(amountPerPerson.toFixed(2));
+      
+      // Only update if the amounts have changed to prevent infinite loop
+      const needsUpdate = splits.some(s => Math.abs(s.amount - expectedAmount) > 0.001);
+      if (needsUpdate) {
+        onSplitsChange(splits.map(s => ({ ...s, amount: expectedAmount })));
+      }
     }
-  }, [splitMethod, splits.length, totalAmount]);
+  }, [splitMethod, splits, totalAmount, onSplitsChange]);
 
   return (
     <div className="space-y-4">

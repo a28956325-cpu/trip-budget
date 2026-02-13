@@ -32,44 +32,44 @@ const AddExpense: React.FC = () => {
   const [splits, setSplits] = useState<Split[]>([]);
 
   useEffect(() => {
-    loadTrip();
-  }, [id, expenseId]);
-
-  const loadTrip = () => {
-    if (id) {
-      const loadedTrip = storage.getTrip(id);
-      if (loadedTrip) {
-        setTrip(loadedTrip);
-        
-        // If editing existing expense
-        if (expenseId) {
-          const expense = loadedTrip.expenses.find(e => e.id === expenseId);
-          if (expense) {
-            setFormData({
-              description: expense.description,
-              amount: expense.amount.toString(),
-              date: expense.date,
-              category: expense.category,
-              paidBy: expense.paidBy,
-              notes: expense.notes || '',
-              receiptUrl: expense.receiptUrl || '',
-              receiptType: expense.receiptType,
-              ocrText: expense.ocrText || ''
-            });
-            setSplitMethod(expense.splitMethod);
-            setSplits(expense.splits);
+    const loadTrip = () => {
+      if (id) {
+        const loadedTrip = storage.getTrip(id);
+        if (loadedTrip) {
+          setTrip(loadedTrip);
+          
+          // If editing existing expense
+          if (expenseId) {
+            const expense = loadedTrip.expenses.find(e => e.id === expenseId);
+            if (expense) {
+              setFormData({
+                description: expense.description,
+                amount: expense.amount.toString(),
+                date: expense.date,
+                category: expense.category,
+                paidBy: expense.paidBy,
+                notes: expense.notes || '',
+                receiptUrl: expense.receiptUrl || '',
+                receiptType: expense.receiptType,
+                ocrText: expense.ocrText || ''
+              });
+              setSplitMethod(expense.splitMethod);
+              setSplits(expense.splits);
+            }
+          } else {
+            // Set default payer to first person
+            if (loadedTrip.people.length > 0) {
+              setFormData(prev => ({ ...prev, paidBy: loadedTrip.people[0].id }));
+            }
           }
         } else {
-          // Set default payer to first person
-          if (loadedTrip.people.length > 0) {
-            setFormData(prev => ({ ...prev, paidBy: loadedTrip.people[0].id }));
-          }
+          navigate('/');
         }
-      } else {
-        navigate('/');
       }
-    }
-  };
+    };
+    
+    loadTrip();
+  }, [id, expenseId, navigate]);
 
   const handleReceiptUpload = (
     receiptUrl: string, 
