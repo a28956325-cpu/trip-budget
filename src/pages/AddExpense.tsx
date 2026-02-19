@@ -5,7 +5,7 @@ import Layout from '../components/Layout';
 import ReceiptUploader from '../components/ReceiptUploader';
 import SplitSelector from '../components/SplitSelector';
 import Toast from '../components/Toast';
-import { Trip, Expense, ExpenseCategory, Split } from '../types';
+import { Trip, Expense, ExpenseCategory, Split, ParsedReceipt } from '../types';
 import { storage } from '../utils/storage';
 import { generateId } from '../utils/helpers';
 import { categories } from '../utils/categories';
@@ -15,6 +15,7 @@ const AddExpense: React.FC = () => {
   const navigate = useNavigate();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
   
   const [formData, setFormData] = useState({
     description: '',
@@ -74,20 +75,53 @@ const AddExpense: React.FC = () => {
   const handleReceiptUpload = (
     receiptUrl: string, 
     receiptType: 'image' | 'pdf', 
-    ocrText?: string, 
-    detectedAmount?: number
+    parsedData?: ParsedReceipt
   ) => {
-    setFormData(prev => ({
-      ...prev,
+    const newFormData: any = {
       receiptUrl,
       receiptType,
-      ocrText: ocrText || '',
-      amount: detectedAmount ? detectedAmount.toString() : prev.amount
-    }));
+      ocrText: parsedData?.rawText || ''
+    };
     
-    if (detectedAmount) {
+    const newAutoFilledFields = new Set<string>();
+    const detectedFields: string[] = [];
+    
+    if (parsedData) {
+      // Auto-fill amount if detected with reasonable confidence
+      if (parsedData.amount && parsedData.confidence.amount !== 'none') {
+        newFormData.amount = parsedData.amount.toString();
+        newAutoFilledFields.add('amount');
+        detectedFields.push(`Amount: ${parsedData.amount}`);
+      }
+      
+      // Auto-fill category if detected with reasonable confidence
+      if (parsedData.category && parsedData.confidence.category !== 'none') {
+        newFormData.category = parsedData.category;
+        newAutoFilledFields.add('category');
+        detectedFields.push(`Category: ${parsedData.category}`);
+      }
+      
+      // Auto-fill description if detected
+      if (parsedData.description && parsedData.confidence.description !== 'none') {
+        newFormData.description = parsedData.description;
+        newAutoFilledFields.add('description');
+        detectedFields.push(`Merchant: ${parsedData.description}`);
+      }
+      
+      // Auto-fill date if detected
+      if (parsedData.date && parsedData.confidence.date !== 'none') {
+        newFormData.date = parsedData.date;
+        newAutoFilledFields.add('date');
+        detectedFields.push(`Date: ${parsedData.date}`);
+      }
+    }
+    
+    setFormData(prev => ({ ...prev, ...newFormData }));
+    setAutoFilledFields(newAutoFilledFields);
+    
+    if (detectedFields.length > 0) {
       setToast({ 
-        message: `Detected amount: ${detectedAmount}. You can edit if needed.`, 
+        message: `✨ Auto-detected: ${detectedFields.join(', ')}. You can edit if needed.`, 
         type: 'success' 
       });
     }
@@ -207,12 +241,24 @@ const AddExpense: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Description *
+                  {autoFilledFields.has('description') && (
+                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                  )}
                 </label>
                 <input
                   type="text"
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  onChange={(e) => {
+                    setFormData({ ...formData, description: e.target.value });
+                    setAutoFilledFields(prev => {
+                      const next = new Set(prev);
+                      next.delete('description');
+                      return next;
+                    });
+                  }}
+                  className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                    autoFilledFields.has('description') ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                  }`}
                   placeholder="Dinner at restaurant"
                   required
                 />
@@ -222,14 +268,26 @@ const AddExpense: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Amount ({trip.currency}) *
+                    {autoFilledFields.has('amount') && (
+                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    )}
                   </label>
                   <input
                     type="number"
                     step="0.01"
                     min="0"
                     value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData({ ...formData, amount: e.target.value });
+                      setAutoFilledFields(prev => {
+                        const next = new Set(prev);
+                        next.delete('amount');
+                        return next;
+                      });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      autoFilledFields.has('amount') ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                    }`}
                     placeholder="0.00"
                     required
                   />
@@ -238,12 +296,24 @@ const AddExpense: React.FC = () => {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Date *
+                    {autoFilledFields.has('date') && (
+                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    )}
                   </label>
                   <input
                     type="date"
                     value={formData.date}
-                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    onChange={(e) => {
+                      setFormData({ ...formData, date: e.target.value });
+                      setAutoFilledFields(prev => {
+                        const next = new Set(prev);
+                        next.delete('date');
+                        return next;
+                      });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                      autoFilledFields.has('date') ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                    }`}
                     required
                   />
                 </div>
@@ -252,16 +322,28 @@ const AddExpense: React.FC = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Category *
+                  {autoFilledFields.has('category') && (
+                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                  )}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {categories.map(cat => (
                     <button
                       key={cat.id}
                       type="button"
-                      onClick={() => setFormData({ ...formData, category: cat.id })}
+                      onClick={() => {
+                        setFormData({ ...formData, category: cat.id });
+                        setAutoFilledFields(prev => {
+                          const next = new Set(prev);
+                          next.delete('category');
+                          return next;
+                        });
+                      }}
                       className={`p-3 rounded-lg border-2 transition-all ${
                         formData.category === cat.id
-                          ? 'border-primary-500 bg-primary-50'
+                          ? autoFilledFields.has('category')
+                            ? 'border-blue-500 bg-blue-100'
+                            : 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
                     >

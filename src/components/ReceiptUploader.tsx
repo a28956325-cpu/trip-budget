@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { fileToBase64 } from '../utils/helpers';
-import { performOCR, extractAmountFromText } from '../utils/ocr';
+import { performOCR, parseReceipt } from '../utils/ocr';
+import { ParsedReceipt } from '../types';
 
 interface ReceiptUploaderProps {
-  onReceiptUpload: (receiptUrl: string, receiptType: 'image' | 'pdf', ocrText?: string, detectedAmount?: number) => void;
+  onReceiptUpload: (receiptUrl: string, receiptType: 'image' | 'pdf', parsedData?: ParsedReceipt) => void;
   currentReceipt?: string;
 }
 
@@ -32,10 +33,10 @@ const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, curr
       setPreview(base64);
 
       if (isImage) {
-        // Perform OCR on images
+        // Perform OCR and smart parsing on images
         const ocrText = await performOCR(base64);
-        const detectedAmount = extractAmountFromText(ocrText);
-        onReceiptUpload(base64, 'image', ocrText, detectedAmount || undefined);
+        const parsedData = parseReceipt(ocrText);
+        onReceiptUpload(base64, 'image', parsedData);
       } else {
         // For PDFs, just store the file
         onReceiptUpload(base64, 'pdf');
@@ -126,7 +127,7 @@ const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, curr
       {isProcessing && (
         <div className="flex items-center justify-center space-x-2 text-primary-600">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent"></div>
-          <span className="text-sm">Processing receipt...</span>
+          <span className="text-sm">🔍 正在辨識收據... Analyzing receipt...</span>
         </div>
       )}
     </div>
