@@ -192,16 +192,32 @@ export const extractDescription = (text: string): { description: string | null; 
     /^phone[:\s]/i,
     /^address[:\s]/i,
     /^add[:\s]/i,
+    /^from[:\s]/i,
+    /^to[:\s]/i,
+    /^time[:\s]/i,
+    /^date[:\s]/i,
+    /total[:\s]/i,  // Skip lines with "total"
+    /subtotal/i,
+    /amount/i,
+    /payment/i,
     /電話/,
     /地址/,
     /^[\d\s\-\(\)]+$/,  // Just phone numbers
-    /^\d{2,4}[-\/]\d{2}[-\/]\d{2}/  // Dates
+    /^\d{2,4}[-\/]\d{2}[-\/]\d{2}/,  // Dates
+    /^\d{1,2}:\d{2}/,  // Times
+    /[$€£¥￥＄]\s*\d/  // Lines with prices
   ];
 
-  // Look at first 5 lines for merchant name
-  const candidates = lines.slice(0, 5).filter(line => {
+  // Look at first 10 lines for merchant name (expanded from 5)
+  const candidates = lines.slice(0, 10).filter(line => {
     // Skip if matches exclude patterns
     if (excludePatterns.some(pattern => pattern.test(line))) {
+      return false;
+    }
+    // Skip lines containing dates or times
+    if (/\d{4}[-\/]\d{2}[-\/]\d{2}/.test(line) || 
+        /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line) ||
+        /\d{1,2}:\d{2}/.test(line)) {
       return false;
     }
     // Skip if line is too short or too long
@@ -215,14 +231,26 @@ export const extractDescription = (text: string): { description: string | null; 
     return { description: lines[0].substring(0, 50), confidence: 'low' };
   }
 
-  // Prefer lines in ALL CAPS or title case (typical for store names)
-  const allCapsLine = candidates.find(line => line === line.toUpperCase() && line.length > 3);
-  if (allCapsLine) {
-    return { description: allCapsLine, confidence: 'high' };
+  // Prefer lines in ALL CAPS that don't contain "RECEIPT" or "INVOICE" (typical for brand names)
+  const brandLine = candidates.find(line => {
+    const upper = line.toUpperCase();
+    return line === upper && 
+           line.length > 3 && 
+           !upper.includes('RECEIPT') && 
+           !upper.includes('INVOICE');
+  });
+  if (brandLine) {
+    return { description: brandLine, confidence: 'high' };
   }
 
-  // Prefer shorter lines (1-4 words)
-  const shortLine = candidates.find(line => line.split(/\s+/).length <= 4);
+  // Prefer shorter lines (1-4 words) that don't contain receipt/invoice
+  const shortLine = candidates.find(line => {
+    const words = line.split(/\s+/);
+    const lower = line.toLowerCase();
+    return words.length <= 4 && 
+           !lower.includes('receipt') && 
+           !lower.includes('invoice');
+  });
   if (shortLine) {
     return { description: shortLine, confidence: 'medium' };
   }
@@ -240,6 +268,16 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
   const datePatterns = [
     // ISO format: 2024-01-15
     { pattern: /(\d{4})-(\d{2})-(\d{2})/g, priority: 10, format: (m: RegExpMatchArray) => `${m[1]}-${m[2]}-${m[3]}` },
+    // Month name format: Jan 22, 2024 or January 22, 2024
+    { pattern: /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/gi, priority: 10, format: (m: RegExpMatchArray) => {
+      const monthMap: Record<string, string> = {
+        'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+        'jul': '07', 'aug': '08', 'sep': '09', 'oct': '10', 'nov': '11', 'dec': '12'
+      };
+      const month = monthMap[m[1].toLowerCase().substring(0, 3)];
+      const day = m[2].padStart(2, '0');
+      return `${m[3]}-${month}-${day}`;
+    }},
     // US format: 01/15/2024 or 01-15-2024
     { pattern: /(\d{2})[\/\-](\d{2})[\/\-](\d{4})/g, priority: 9, format: (m: RegExpMatchArray) => `${m[3]}-${m[1]}-${m[2]}` },
     // EU format: 15/01/2024 or 15-01-2024
