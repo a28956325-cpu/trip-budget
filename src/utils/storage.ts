@@ -31,6 +31,10 @@ export const storage = {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(trips));
   },
 
+  updateTrip(trip: Trip): void {
+    this.saveTrip(trip);
+  },
+
   deleteTrip(id: string): void {
     const trips = this.getAllTrips();
     const filtered = trips.filter(trip => trip.id !== id);
