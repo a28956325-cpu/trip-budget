@@ -77,7 +77,7 @@ const AddExpense: React.FC = () => {
     receiptType: 'image' | 'pdf', 
     parsedData?: ParsedReceipt
   ) => {
-    const newFormData: any = {
+    const newFormData: Partial<typeof formData> = {
       receiptUrl,
       receiptType,
       ocrText: parsedData?.rawText || ''
