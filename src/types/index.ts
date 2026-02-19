@@ -4,12 +4,23 @@ export interface Person {
   id: string;
   name: string;
   color: string;
+  bankInfo?: {
+    bankName: string;
+    accountNumber: string;
+  };
 }
 
 export interface Split {
   personId: string;
   amount: number;
   percentage?: number;
+}
+
+export interface ExpenseItem {
+  id: string;
+  name: string;
+  amount: number;
+  splitAmong: string[]; // person IDs
 }
 
 export interface Expense {
@@ -20,13 +31,21 @@ export interface Expense {
   date: string;
   category: ExpenseCategory;
   paidBy: string;
-  splitMethod: 'equal' | 'exact' | 'percentage';
+  splitMethod: 'equal' | 'exact' | 'percentage' | 'items';
   splits: Split[];
+  items?: ExpenseItem[]; // for item-level splitting
   receiptUrl?: string;
   receiptType?: 'image' | 'pdf';
   ocrText?: string;
   notes?: string;
   createdAt: string;
+}
+
+export interface TripBudget {
+  total?: number;
+  categories?: {
+    [key in ExpenseCategory]?: number;
+  };
 }
 
 export interface Trip {
@@ -39,12 +58,15 @@ export interface Trip {
   createdAt: string;
   people: Person[];
   expenses: Expense[];
+  budget?: TripBudget;
 }
 
 export interface Settlement {
   from: string;
   to: string;
   amount: number;
+  settled?: boolean;
+  remindedAt?: string;
 }
 
 export interface CategoryInfo {

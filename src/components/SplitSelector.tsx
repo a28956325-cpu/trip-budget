@@ -5,9 +5,9 @@ import PersonAvatar from './PersonAvatar';
 interface SplitSelectorProps {
   people: Person[];
   totalAmount: number;
-  splitMethod: 'equal' | 'exact' | 'percentage';
+  splitMethod: 'equal' | 'exact' | 'percentage' | 'items';
   splits: Split[];
-  onSplitMethodChange: (method: 'equal' | 'exact' | 'percentage') => void;
+  onSplitMethodChange: (method: 'equal' | 'exact' | 'percentage' | 'items') => void;
   onSplitsChange: (splits: Split[]) => void;
 }
 

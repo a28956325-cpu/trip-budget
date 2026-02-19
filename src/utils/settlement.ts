@@ -1,9 +1,14 @@
-import { Trip, Settlement } from '../types';
+import { Trip, Settlement, Expense } from '../types';
+import { convertCurrency } from './currency';
 
 interface Balance {
   personId: string;
   balance: number;
 }
+
+const convertExpenseToBaseCurrency = (expense: Expense, baseCurrency: string): number => {
+  return convertCurrency(expense.amount, expense.currency, baseCurrency);
+};
 
 export const calculateBalances = (trip: Trip): Map<string, number> => {
   const balances = new Map<string, number>();
@@ -15,15 +20,41 @@ export const calculateBalances = (trip: Trip): Map<string, number> => {
   
   // Calculate balances
   trip.expenses.forEach(expense => {
+    // Convert expense amount to base currency
+    const amountInBaseCurrency = convertExpenseToBaseCurrency(expense, trip.currency);
+    
     // The payer gets credited
     const paidAmount = balances.get(expense.paidBy) || 0;
-    balances.set(expense.paidBy, paidAmount + expense.amount);
+    balances.set(expense.paidBy, paidAmount + amountInBaseCurrency);
     
-    // Each split participant gets debited
-    expense.splits.forEach(split => {
-      const owedAmount = balances.get(split.personId) || 0;
-      balances.set(split.personId, owedAmount - split.amount);
-    });
+    // Handle item-level splitting
+    if (expense.splitMethod === 'items' && expense.items && expense.items.length > 0) {
+      // Calculate splits from items
+      const itemSplits = new Map<string, number>();
+      
+      expense.items.forEach(item => {
+        const itemAmountInBase = convertCurrency(item.amount, expense.currency, trip.currency);
+        const perPerson = itemAmountInBase / item.splitAmong.length;
+        
+        item.splitAmong.forEach(personId => {
+          const current = itemSplits.get(personId) || 0;
+          itemSplits.set(personId, current + perPerson);
+        });
+      });
+      
+      // Debit each person their share
+      itemSplits.forEach((amount, personId) => {
+        const owedAmount = balances.get(personId) || 0;
+        balances.set(personId, owedAmount - amount);
+      });
+    } else {
+      // Regular split method - convert each split amount to base currency
+      expense.splits.forEach(split => {
+        const splitAmountInBase = convertCurrency(split.amount, expense.currency, trip.currency);
+        const owedAmount = balances.get(split.personId) || 0;
+        balances.set(split.personId, owedAmount - splitAmountInBase);
+      });
+    }
   });
   
   return balances;
@@ -55,7 +86,8 @@ export const calculateSettlements = (trip: Trip): Settlement[] => {
       settlements.push({
         from: debtor.personId,
         to: creditor.personId,
-        amount: parseFloat(amount.toFixed(2))
+        amount: parseFloat(amount.toFixed(2)),
+        settled: false
       });
     }
     
@@ -74,13 +106,26 @@ export const getPersonBalance = (trip: Trip, personId: string): { paid: number; 
   let owed = 0;
   
   trip.expenses.forEach(expense => {
+    const amountInBase = convertExpenseToBaseCurrency(expense, trip.currency);
+    
     if (expense.paidBy === personId) {
-      paid += expense.amount;
+      paid += amountInBase;
     }
     
-    const split = expense.splits.find(s => s.personId === personId);
-    if (split) {
-      owed += split.amount;
+    if (expense.splitMethod === 'items' && expense.items && expense.items.length > 0) {
+      // Calculate owed amount from items
+      expense.items.forEach(item => {
+        if (item.splitAmong.includes(personId)) {
+          const itemAmountInBase = convertCurrency(item.amount, expense.currency, trip.currency);
+          owed += itemAmountInBase / item.splitAmong.length;
+        }
+      });
+    } else {
+      const split = expense.splits.find(s => s.personId === personId);
+      if (split) {
+        const splitAmountInBase = convertCurrency(split.amount, expense.currency, trip.currency);
+        owed += splitAmountInBase;
+      }
     }
   });
   

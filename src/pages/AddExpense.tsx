@@ -29,7 +29,7 @@ const AddExpense: React.FC = () => {
     ocrText: ''
   });
 
-  const [splitMethod, setSplitMethod] = useState<'equal' | 'exact' | 'percentage'>('equal');
+  const [splitMethod, setSplitMethod] = useState<'equal' | 'exact' | 'percentage' | 'items'>('equal');
   const [splits, setSplits] = useState<Split[]>([]);
 
   useEffect(() => {
