@@ -59,7 +59,7 @@ const AddExpense: React.FC = () => {
                 receiptUrl: expense.receiptUrl || '',
                 receiptType: expense.receiptType,
                 ocrText: expense.ocrText || '',
-                currency: expense.currency
+                currency: expense.currency || loadedTrip.currency
               });
               setSplitMethod(expense.splitMethod);
               setSplits(expense.splits);
