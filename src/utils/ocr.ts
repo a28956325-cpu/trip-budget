@@ -5,6 +5,12 @@ import { ExpenseCategory, ParsedReceipt } from '../types';
 // Set up PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
+// Constants for text extraction thresholds
+export const MIN_PDF_TEXT_LENGTH = 50; // Minimum characters to consider PDF has extractable text
+const MIN_HOTEL_NAME_LENGTH = 5;
+const MAX_HOTEL_NAME_LENGTH = 100;
+const MAX_GARBAGE_RATIO = 0.3; // Maximum ratio of garbage characters allowed
+
 export const performOCR = async (imageData: string): Promise<string> => {
   try {
     const worker = await createWorker('eng');
@@ -256,7 +262,7 @@ export const extractDescription = (text: string): { description: string | null; 
 
   for (const pattern of hotelPatterns) {
     const match = text.match(pattern);
-    if (match && match[0].length > 5 && match[0].length < 100) {
+    if (match && match[0].length > MIN_HOTEL_NAME_LENGTH && match[0].length < MAX_HOTEL_NAME_LENGTH) {
       return { description: match[0].trim(), confidence: 'high' };
     }
   }
@@ -309,7 +315,7 @@ export const extractDescription = (text: string): { description: string | null; 
     // Skip lines that are mostly garbage characters
     const garbageChars = /[^\w\s\-.'&,()]/g;
     const garbageCount = (line.match(garbageChars) || []).length;
-    if (garbageCount > line.length * 0.3) {
+    if (garbageCount > line.length * MAX_GARBAGE_RATIO) {
       return false;
     }
     return true;

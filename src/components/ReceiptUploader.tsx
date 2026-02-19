@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { fileToBase64 } from '../utils/helpers';
-import { performOCR, parseReceipt, extractTextFromPDF, extractTextFromPDFWithOCR } from '../utils/ocr';
+import { performOCR, parseReceipt, extractTextFromPDF, extractTextFromPDFWithOCR, MIN_PDF_TEXT_LENGTH } from '../utils/ocr';
 import { ParsedReceipt } from '../types';
 
 interface ReceiptUploaderProps {
@@ -39,7 +39,7 @@ const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, curr
         const pdfText = await extractTextFromPDF(file);
         
         // Check if PDF has enough text (not a scanned PDF)
-        if (pdfText.trim().length >= 50) {
+        if (pdfText.trim().length >= MIN_PDF_TEXT_LENGTH) {
           // PDF has text, use direct extraction
           const parsedData = parseReceipt(pdfText, 'pdf-text');
           onReceiptUpload(base64, 'pdf', parsedData);
