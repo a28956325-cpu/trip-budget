@@ -470,7 +470,7 @@ const AddExpense: React.FC = () => {
             {/* Split Method Selector */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Split Method
+                {t('expense.splitMethod')}
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <button
@@ -482,7 +482,7 @@ const AddExpense: React.FC = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Equal
+                  {t('expense.splitEqual')}
                 </button>
                 <button
                   type="button"
@@ -493,7 +493,7 @@ const AddExpense: React.FC = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Exact
+                  {t('expense.splitExact')}
                 </button>
                 <button
                   type="button"
@@ -504,7 +504,7 @@ const AddExpense: React.FC = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  Percentage
+                  {t('expense.splitPercentage')}
                 </button>
                 <button
                   type="button"
@@ -515,7 +515,7 @@ const AddExpense: React.FC = () => {
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
-                  By Items
+                  {t('expense.splitByItems')}
                 </button>
               </div>
             </div>
