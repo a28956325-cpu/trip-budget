@@ -135,3 +135,79 @@ export const getPersonBalance = (trip: Trip, personId: string): { paid: number; 
     balance: parseFloat((paid - owed).toFixed(2))
   };
 };
+
+// Calculate each person's total spending (sum of their splits in all expenses)
+export const calculatePersonSpending = (trip: Trip): Map<string, number> => {
+  const spending = new Map<string, number>();
+  
+  // Initialize spending for all people
+  trip.people.forEach(person => {
+    spending.set(person.id, 0);
+  });
+  
+  // Calculate spending from all expenses
+  trip.expenses.forEach(expense => {
+    if (expense.splitMethod === 'items' && expense.items && expense.items.length > 0) {
+      // Item-level: each person's share = sum of items they're in, divided by people in that item
+      expense.items.forEach(item => {
+        const itemAmountInBase = convertCurrency(item.amount, expense.currency, trip.currency);
+        const perPerson = itemAmountInBase / item.splitAmong.length;
+        
+        item.splitAmong.forEach(personId => {
+          spending.set(personId, (spending.get(personId) || 0) + perPerson);
+        });
+      });
+    } else {
+      // Regular split: use the splits array
+      expense.splits.forEach(split => {
+        const splitAmountInBase = convertCurrency(split.amount, expense.currency, trip.currency);
+        spending.set(split.personId, (spending.get(split.personId) || 0) + splitAmountInBase);
+      });
+    }
+  });
+  
+  // Round to 2 decimal places
+  spending.forEach((value, key) => {
+    spending.set(key, parseFloat(value.toFixed(2)));
+  });
+  
+  return spending;
+};
+
+// Calculate each person's total paid amount
+export const calculatePersonPaid = (trip: Trip): Map<string, number> => {
+  const paid = new Map<string, number>();
+  
+  // Initialize paid for all people
+  trip.people.forEach(person => {
+    paid.set(person.id, 0);
+  });
+  
+  // Calculate paid from all expenses
+  trip.expenses.forEach(expense => {
+    const amountInBase = convertExpenseToBaseCurrency(expense, trip.currency);
+    paid.set(expense.paidBy, (paid.get(expense.paidBy) || 0) + amountInBase);
+  });
+  
+  // Round to 2 decimal places
+  paid.forEach((value, key) => {
+    paid.set(key, parseFloat(value.toFixed(2)));
+  });
+  
+  return paid;
+};
+
+// Net balance = paid - spending (positive means owed money back, negative means owes money)
+export const calculateNetBalances = (trip: Trip): Map<string, number> => {
+  const spending = calculatePersonSpending(trip);
+  const paid = calculatePersonPaid(trip);
+  const balances = new Map<string, number>();
+  
+  trip.people.forEach(person => {
+    const personPaid = paid.get(person.id) || 0;
+    const personSpent = spending.get(person.id) || 0;
+    balances.set(person.id, parseFloat((personPaid - personSpent).toFixed(2)));
+  });
+  
+  return balances;
+};
