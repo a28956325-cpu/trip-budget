@@ -82,6 +82,7 @@ export interface ParsedReceipt {
   description: string | null;
   date: string | null;
   rawText: string;
+  extractionMethod?: 'pdf-text' | 'ocr';
   confidence: {
     amount: 'high' | 'medium' | 'low' | 'none';
     category: 'high' | 'medium' | 'low' | 'none';

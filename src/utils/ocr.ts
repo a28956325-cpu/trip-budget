@@ -1,5 +1,9 @@
 import { createWorker } from 'tesseract.js';
+import * as pdfjsLib from 'pdfjs-dist';
 import { ExpenseCategory, ParsedReceipt } from '../types';
+
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 export const performOCR = async (imageData: string): Promise<string> => {
   try {
@@ -13,6 +17,66 @@ export const performOCR = async (imageData: string): Promise<string> => {
   }
 };
 
+// Extract text directly from PDF (no OCR needed)
+export const extractTextFromPDF = async (file: File): Promise<string> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items
+        .map((item) => ('str' in item ? item.str : ''))
+        .join(' ');
+      fullText += pageText + '\n';
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('PDF text extraction error:', error);
+    return '';
+  }
+};
+
+// Render PDF to canvas and perform OCR (fallback for scanned PDFs)
+export const extractTextFromPDFWithOCR = async (file: File): Promise<string> => {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    
+    let fullText = '';
+    
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: 2.0 });
+      
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      if (!context) continue;
+      
+      canvas.height = viewport.height;
+      canvas.width = viewport.width;
+      
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+      
+      const imageData = canvas.toDataURL('image/png');
+      const ocrText = await performOCR(imageData);
+      fullText += ocrText + '\n';
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('PDF OCR error:', error);
+    return '';
+  }
+};
+
 // Extract amount with enhanced currency support and total detection
 export const extractAmountFromText = (text: string): { amount: number | null; confidence: 'high' | 'medium' | 'low' | 'none' } => {
   const lines = text.split('\n');
@@ -22,12 +86,14 @@ export const extractAmountFromText = (text: string): { amount: number | null; co
   const totalKeywords = [
     'grand total', 'total amount', 'amount due', 'balance due',
     '合計', '總計', '小計', '應付', '金額',
-    'net', 'total', 'amount', 'sum'
+    'net', 'total', 'amount', 'sum',
+    'final price', 'price', 'you\'ll pay', 'youll pay'
   ];
 
   // Enhanced currency patterns
   const currencyPatterns = [
     /[$＄]\s*(\d{1,3}(?:[,，]\d{3})*(?:[.,．]\d{2})?)/gi,  // $1,234.56 or ＄1,234.56
+    /US\$\s*(\d{1,3}(?:[,，]\d{3})*(?:[.,．]\d{2})?)/gi,  // US$1,234.56
     /NT\$?\s*(\d{1,3}(?:[,，]\d{3})*(?:[.,．]\d{2})?)/gi,  // NT$1,234 or NT1234
     /[¥￥]\s*(\d{1,3}(?:[,，]\d{3})*(?:[.,．]\d{2})?)/gi,  // ¥1,234 or ￥1,234
     /[€]\s*(\d{1,3}(?:[,，]\d{3})*(?:[.,．]\d{2})?)/gi,   // €50.00
@@ -104,6 +170,7 @@ export const classifyCategory = (text: string): { category: ExpenseCategory; con
     accommodation: [
       'hotel', 'hostel', 'airbnb', 'motel', 'inn', 'resort', 'booking', 'agoda',
       'marriott', 'hilton', 'hyatt', 'check-in', 'check-out', 'room', 'suite', 'lodge',
+      'booking confirmation', 'nights', 'property', 'residence', 'stay',
       '飯店', '旅館', '民宿', '住宿', '酒店', '賓館', '旅店'
     ],
     transport: [
@@ -181,6 +248,19 @@ export const extractDescription = (text: string): { description: string | null; 
     return { description: null, confidence: 'none' };
   }
 
+  // For hotel bookings, look for hotel names with special patterns
+  const hotelPatterns = [
+    /(?:Residence Inn|Marriott|Hilton|Hyatt|Holiday Inn|Best Western|Hampton Inn|Sheraton|Westin|Radisson|Courtyard|Fairfield Inn|SpringHill Suites|TownePlace Suites|Embassy Suites|DoubleTree|Homewood Suites|Home2 Suites|Four Points|Aloft|Element|Le Méridien|Luxury Collection|Tribute Portfolio|Design Hotels|W Hotels|St\. Regis|EDITION|Ritz-Carlton|JW Marriott|Renaissance|AC Hotels|Moxy|Autograph Collection|Delta Hotels|Gaylord Hotels)[^\n]*/gi,
+    /(?:Hotel|Inn|Resort|Suites?|Lodge)\s+[A-Z][^\n]*/gi
+  ];
+
+  for (const pattern of hotelPatterns) {
+    const match = text.match(pattern);
+    if (match && match[0].length > 5 && match[0].length < 100) {
+      return { description: match[0].trim(), confidence: 'high' };
+    }
+  }
+
   // Filter out common non-merchant text
   const excludePatterns = [
     /receipt/i,
@@ -202,26 +282,34 @@ export const extractDescription = (text: string): { description: string | null; 
     /payment/i,
     /電話/,
     /地址/,
-    /^[\d\s\-\(\)]+$/,  // Just phone numbers
-    /^\d{2,4}[-\/]\d{2}[-\/]\d{2}/,  // Dates
+    /^[\d\s\-()]+$/,  // Just phone numbers
+    /^\d{2,4}[-/]\d{2}[-/]\d{2}/,  // Dates
     /^\d{1,2}:\d{2}/,  // Times
-    /[$€£¥￥＄]\s*\d/  // Lines with prices
+    /[$€£¥￥＄]\s*\d/,  // Lines with prices
+    /booking\.com/i,  // Skip Booking.com header
+    /confirmation/i  // Skip confirmation header lines
   ];
 
-  // Look at first 10 lines for merchant name (expanded from 5)
-  const candidates = lines.slice(0, 10).filter(line => {
+  // Look at first 15 lines for merchant name (expanded from 10)
+  const candidates = lines.slice(0, 15).filter(line => {
     // Skip if matches exclude patterns
     if (excludePatterns.some(pattern => pattern.test(line))) {
       return false;
     }
     // Skip lines containing dates or times
-    if (/\d{4}[-\/]\d{2}[-\/]\d{2}/.test(line) || 
+    if (/\d{4}[-/]\d{2}[-/]\d{2}/.test(line) || 
         /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)/i.test(line) ||
         /\d{1,2}:\d{2}/.test(line)) {
       return false;
     }
-    // Skip if line is too short or too long
-    if (line.length < 3 || line.length > 50) {
+    // Skip very short lines (< 3 chars) but allow longer ones (up to 80 chars for hotel names)
+    if (line.length < 3 || line.length > 80) {
+      return false;
+    }
+    // Skip lines that are mostly garbage characters
+    const garbageChars = /[^\w\s\-.'&,()]/g;
+    const garbageCount = (line.match(garbageChars) || []).length;
+    if (garbageCount > line.length * 0.3) {
       return false;
     }
     return true;
@@ -241,6 +329,15 @@ export const extractDescription = (text: string): { description: string | null; 
   });
   if (brandLine) {
     return { description: brandLine, confidence: 'high' };
+  }
+
+  // For hotel bookings, prefer longer descriptive lines (hotel names are often detailed)
+  const longLine = candidates.find(line => {
+    const words = line.split(/\s+/);
+    return words.length >= 3 && words.length <= 10 && line.length >= 10;
+  });
+  if (longLine) {
+    return { description: longLine, confidence: 'medium' };
   }
 
   // Prefer shorter lines (1-4 words) that don't contain receipt/invoice
@@ -268,6 +365,16 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
   const datePatterns = [
     // ISO format: 2024-01-15
     { pattern: /(\d{4})-(\d{2})-(\d{2})/g, priority: 10, format: (m: RegExpMatchArray) => `${m[1]}-${m[2]}-${m[3]}` },
+    // Day Month format: 29 APRIL, 2 MAY (common in booking confirmations)
+    { pattern: /(\d{1,2})\s+(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER)/gi, priority: 11, format: (m: RegExpMatchArray) => {
+      const monthMap: Record<string, string> = {
+        'january': '01', 'february': '02', 'march': '03', 'april': '04', 'may': '05', 'june': '06',
+        'july': '07', 'august': '08', 'september': '09', 'october': '10', 'november': '11', 'december': '12'
+      };
+      const month = monthMap[m[2].toLowerCase()];
+      const day = m[1].padStart(2, '0');
+      return `${currentYear}-${month}-${day}`;
+    }},
     // Month name format: Jan 22, 2024 or January 22, 2024
     { pattern: /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+(\d{1,2}),?\s+(\d{4})/gi, priority: 10, format: (m: RegExpMatchArray) => {
       const monthMap: Record<string, string> = {
@@ -279,19 +386,19 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
       return `${m[3]}-${month}-${day}`;
     }},
     // US format: 01/15/2024 or 01-15-2024
-    { pattern: /(\d{2})[\/\-](\d{2})[\/\-](\d{4})/g, priority: 9, format: (m: RegExpMatchArray) => `${m[3]}-${m[1]}-${m[2]}` },
+    { pattern: /(\d{2})[/-](\d{2})[/-](\d{4})/g, priority: 9, format: (m: RegExpMatchArray) => `${m[3]}-${m[1]}-${m[2]}` },
     // EU format: 15/01/2024 or 15-01-2024
-    { pattern: /(\d{2})[\/\-](\d{2})[\/\-](\d{4})/g, priority: 8, format: (m: RegExpMatchArray) => `${m[3]}-${m[2]}-${m[1]}` },
+    { pattern: /(\d{2})[/-](\d{2})[/-](\d{4})/g, priority: 8, format: (m: RegExpMatchArray) => `${m[3]}-${m[2]}-${m[1]}` },
     // Chinese format: 2024年1月15日
     { pattern: /(\d{4})年(\d{1,2})月(\d{1,2})日/g, priority: 10, format: (m: RegExpMatchArray) => `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` },
     // ROC calendar: 113/01/15 (民國年)
-    { pattern: /(\d{2,3})[\/\-](\d{2})[\/\-](\d{2})/g, priority: 7, format: (m: RegExpMatchArray) => {
+    { pattern: /(\d{2,3})[/-](\d{2})[/-](\d{2})/g, priority: 7, format: (m: RegExpMatchArray) => {
       const rocYear = parseInt(m[1]);
       const westernYear = rocYear > 1911 ? rocYear : rocYear + 1911;
       return `${westernYear}-${m[2]}-${m[3]}`;
     }},
     // Short format: 01/15/24
-    { pattern: /(\d{2})[\/\-](\d{2})[\/\-](\d{2})/g, priority: 6, format: (m: RegExpMatchArray) => {
+    { pattern: /(\d{2})[/-](\d{2})[/-](\d{2})/g, priority: 6, format: (m: RegExpMatchArray) => {
       const year = parseInt(m[3]);
       const fullYear = year > 50 ? 1900 + year : 2000 + year;
       return `${fullYear}-${m[1]}-${m[2]}`;
@@ -302,6 +409,10 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
 
   lines.forEach(line => {
     const lowerLine = line.toLowerCase();
+    // Higher priority for CHECK-IN dates (common in hotel bookings)
+    const hasCheckInKeyword = lowerLine.includes('check-in') || lowerLine.includes('check in') || lowerLine.includes('checkin');
+    const checkInBonus = hasCheckInKeyword ? 10 : 0;
+    
     // Bonus priority if line contains date keywords
     const hasDateKeyword = lowerLine.includes('date') || lowerLine.includes('日期') || lowerLine.includes('time');
     const keywordBonus = hasDateKeyword ? 5 : 0;
@@ -319,7 +430,7 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
             if (year >= 2000 && year <= currentYear + 1) {
               dates.push({
                 date: dateStr,
-                priority: priority + keywordBonus,
+                priority: priority + keywordBonus + checkInBonus,
                 line: line.trim()
               });
             }
@@ -339,13 +450,13 @@ export const extractDate = (text: string): { date: string | null; confidence: 'h
   dates.sort((a, b) => b.priority - a.priority);
 
   const selectedDate = dates[0].date;
-  const confidence = dates[0].priority >= 15 ? 'high' : (dates[0].priority >= 10 ? 'medium' : 'low');
+  const confidence = dates[0].priority >= 20 ? 'high' : (dates[0].priority >= 10 ? 'medium' : 'low');
 
   return { date: selectedDate, confidence };
 };
 
 // Main function to parse receipt and extract all information
-export const parseReceipt = (ocrText: string): ParsedReceipt => {
+export const parseReceipt = (ocrText: string, extractionMethod: 'pdf-text' | 'ocr' = 'ocr'): ParsedReceipt => {
   if (!ocrText || ocrText.trim().length === 0) {
     return {
       amount: null,
@@ -353,6 +464,7 @@ export const parseReceipt = (ocrText: string): ParsedReceipt => {
       description: null,
       date: null,
       rawText: ocrText,
+      extractionMethod,
       confidence: {
         amount: 'none',
         category: 'none',
@@ -367,17 +479,26 @@ export const parseReceipt = (ocrText: string): ParsedReceipt => {
   const descriptionResult = extractDescription(ocrText);
   const dateResult = extractDate(ocrText);
 
+  // Boost confidence for PDF text extraction (it's 100% accurate text)
+  const boostConfidence = (conf: 'high' | 'medium' | 'low' | 'none'): 'high' | 'medium' | 'low' | 'none' => {
+    if (extractionMethod === 'pdf-text' && conf !== 'none') {
+      return conf === 'low' ? 'medium' : 'high';
+    }
+    return conf;
+  };
+
   return {
     amount: amountResult.amount,
     category: categoryResult.category === 'other' && categoryResult.confidence === 'none' ? null : categoryResult.category,
     description: descriptionResult.description,
     date: dateResult.date,
     rawText: ocrText,
+    extractionMethod,
     confidence: {
-      amount: amountResult.confidence,
-      category: categoryResult.confidence,
-      description: descriptionResult.confidence,
-      date: dateResult.confidence
+      amount: boostConfidence(amountResult.confidence),
+      category: boostConfidence(categoryResult.confidence),
+      description: boostConfidence(descriptionResult.confidence),
+      date: boostConfidence(dateResult.confidence)
     }
   };
 };
