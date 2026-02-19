@@ -7,6 +7,7 @@ import ExpensesList from './pages/ExpensesList';
 import PeoplePage from './pages/PeoplePage';
 import SettlementPage from './pages/SettlementPage';
 import ExportPage from './pages/ExportPage';
+import BudgetPage from './pages/BudgetPage';
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
         <Route path="/trip/:id/people" element={<PeoplePage />} />
         <Route path="/trip/:id/settlement" element={<SettlementPage />} />
         <Route path="/trip/:id/export" element={<ExportPage />} />
+        <Route path="/trip/:id/budget" element={<BudgetPage />} />
       </Routes>
     </BrowserRouter>
   );

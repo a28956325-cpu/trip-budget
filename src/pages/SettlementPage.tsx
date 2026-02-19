@@ -2,14 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import PersonAvatar from '../components/PersonAvatar';
+import ShareSettlement from '../components/ShareSettlement';
 import { Trip } from '../types';
 import { storage } from '../utils/storage';
 import { calculateBalances, calculateSettlements } from '../utils/settlement';
 import { formatCurrency } from '../utils/helpers';
+import { useI18n } from '../contexts/I18nContext';
 
 const SettlementPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
@@ -28,29 +31,29 @@ const SettlementPage: React.FC = () => {
   }, [id, navigate]);
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   if (trip.people.length === 0 || trip.expenses.length === 0) {
     return (
-      <Layout title="Settlement" backTo={`/trip/${id}`}>
+      <Layout title={t('settlement.title')} backTo={`/trip/${id}`}>
         <div className="max-w-4xl mx-auto">
           <div className="bg-white rounded-xl shadow-md p-12 text-center">
             <div className="text-6xl mb-4">💰</div>
             <h3 className="text-xl font-semibold text-gray-700 mb-2">
-              {trip.people.length === 0 ? 'No People Added' : 'No Expenses Yet'}
+              {trip.people.length === 0 ? t('people.noPeople') : t('expense.noExpenses')}
             </h3>
             <p className="text-gray-500 mb-4">
               {trip.people.length === 0 
-                ? 'Add people to your trip first'
-                : 'Add expenses to calculate settlements'
+                ? t('people.noPeople')
+                : t('expense.noExpenses')
               }
             </p>
             <button
               onClick={() => navigate(trip.people.length === 0 ? `/trip/${id}/people` : `/trip/${id}/expense/new`)}
               className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              {trip.people.length === 0 ? 'Add People' : 'Add Expense'}
+              {trip.people.length === 0 ? t('people.addPerson') : t('expense.add')}
             </button>
           </div>
         </div>
@@ -67,11 +70,11 @@ const SettlementPage: React.FC = () => {
   })).sort((a, b) => b.balance - a.balance);
 
   return (
-    <Layout title="Settlement" backTo={`/trip/${id}`}>
+    <Layout title={t('settlement.title')} backTo={`/trip/${id}`}>
       <div className="max-w-5xl mx-auto space-y-6">
         {/* Balance Overview */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Balance Overview</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('settlement.balanceOverview')}</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {balanceArray.map(({ person, balance }) => (
@@ -93,22 +96,22 @@ const SettlementPage: React.FC = () => {
                 <div className="ml-11">
                   {balance > 0.01 ? (
                     <div>
-                      <p className="text-sm text-gray-600">Should receive:</p>
+                      <p className="text-sm text-gray-600">{t('settlement.isOwed')}:</p>
                       <p className="text-lg font-bold text-green-700">
                         {formatCurrency(balance, trip.currency)}
                       </p>
                     </div>
                   ) : balance < -0.01 ? (
                     <div>
-                      <p className="text-sm text-gray-600">Should pay:</p>
+                      <p className="text-sm text-gray-600">{t('settlement.owes')}:</p>
                       <p className="text-lg font-bold text-red-700">
                         {formatCurrency(Math.abs(balance), trip.currency)}
                       </p>
                     </div>
                   ) : (
                     <div>
-                      <p className="text-sm text-gray-600">Status:</p>
-                      <p className="text-lg font-bold text-gray-700">Settled ✓</p>
+                      <p className="text-sm text-gray-600">{t('settlement.settled')}</p>
+                      <p className="text-lg font-bold text-gray-700">✓</p>
                     </div>
                   )}
                 </div>
@@ -119,16 +122,16 @@ const SettlementPage: React.FC = () => {
 
         {/* Settlement Plan */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Simplified Settlement Plan</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('settlement.plan')}</h2>
           <p className="text-sm text-gray-600 mb-6">
-            Minimum number of transactions to settle all debts
+            {t('settlement.plan')}
           </p>
 
           {settlements.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-5xl mb-3">🎉</div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">All Settled!</h3>
-              <p className="text-gray-600">Everyone is even, no transactions needed.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">{t('settlement.settled')}</h3>
+              <p className="text-gray-600">{t('settlement.noSettlement')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -154,7 +157,7 @@ const SettlementPage: React.FC = () => {
                     </div>
 
                     <div className="ml-4 text-right">
-                      <p className="text-sm text-gray-600">Pays</p>
+                      <p className="text-sm text-gray-600">{t('settlement.pays')}</p>
                       <p className="text-xl font-bold text-primary-700">
                         {formatCurrency(settlement.amount, trip.currency)}
                       </p>
@@ -167,10 +170,9 @@ const SettlementPage: React.FC = () => {
                 <div className="flex items-start space-x-3">
                   <div className="text-2xl">💡</div>
                   <div>
-                    <h4 className="font-semibold text-blue-900 mb-1">Tip</h4>
+                    <h4 className="font-semibold text-blue-900 mb-1">{t('settlement.plan')}</h4>
                     <p className="text-sm text-blue-800">
-                      This settlement plan minimizes the number of transactions needed. 
-                      Only {settlements.length} transaction{settlements.length !== 1 ? 's' : ''} required to settle all debts!
+                      {t('settlement.plan')}
                     </p>
                   </div>
                 </div>
@@ -179,11 +181,14 @@ const SettlementPage: React.FC = () => {
           )}
         </div>
 
+        {/* Share Settlement */}
+        <ShareSettlement trip={trip} settlements={settlements} />
+
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="bg-gradient-to-br from-primary-500 to-primary-600 text-white rounded-xl p-6">
             <div className="text-3xl mb-2">💰</div>
-            <p className="text-primary-100 text-sm mb-1">Total Expenses</p>
+            <p className="text-primary-100 text-sm mb-1">{t('dashboard.totalExpenses')}</p>
             <p className="text-2xl font-bold">
               {formatCurrency(trip.expenses.reduce((sum, e) => sum + e.amount, 0), trip.currency)}
             </p>
@@ -191,13 +196,13 @@ const SettlementPage: React.FC = () => {
 
           <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl p-6">
             <div className="text-3xl mb-2">🔄</div>
-            <p className="text-green-100 text-sm mb-1">Transactions Needed</p>
+            <p className="text-green-100 text-sm mb-1">{t('settlement.plan')}</p>
             <p className="text-2xl font-bold">{settlements.length}</p>
           </div>
 
           <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl p-6">
             <div className="text-3xl mb-2">✅</div>
-            <p className="text-purple-100 text-sm mb-1">People Settled</p>
+            <p className="text-purple-100 text-sm mb-1">{t('settlement.settled')}</p>
             <p className="text-2xl font-bold">
               {balanceArray.filter(b => Math.abs(b.balance) < 0.01).length} / {trip.people.length}
             </p>

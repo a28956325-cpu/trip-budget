@@ -6,10 +6,12 @@ import { Trip } from '../types';
 import { storage } from '../utils/storage';
 import { exportToExcel } from '../utils/excel';
 import { formatCurrency, formatDate } from '../utils/helpers';
+import { useI18n } from '../contexts/I18nContext';
 
 const ExportPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -46,21 +48,21 @@ const ExportPage: React.FC = () => {
   };
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   const totalExpenses = trip.expenses.reduce((sum, e) => sum + e.amount, 0);
   const averagePerPerson = trip.people.length > 0 ? totalExpenses / trip.people.length : 0;
 
   return (
-    <Layout title="Export to Excel" backTo={`/trip/${id}`}>
+    <Layout title={t('export.title')} backTo={`/trip/${id}`}>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Export Header */}
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl shadow-lg p-8 text-center">
           <div className="text-6xl mb-4">📊</div>
-          <h2 className="text-3xl font-bold mb-2">Export Your Trip Data</h2>
+          <h2 className="text-3xl font-bold mb-2">{t('export.title')}</h2>
           <p className="text-purple-100 mb-6">
-            Download a comprehensive Excel report with all your expenses, balances, and settlements
+            {t('export.download')}
           </p>
           <button
             onClick={handleExport}
@@ -70,50 +72,50 @@ const ExportPage: React.FC = () => {
             {isExporting ? (
               <span className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-2 border-purple-600 border-t-transparent"></div>
-                <span>Exporting...</span>
+                <span>{t('common.loading')}</span>
               </span>
             ) : (
-              '📥 Download Excel File'
+              `📥 ${t('export.download')}`
             )}
           </button>
         </div>
 
         {/* Preview */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-xl font-semibold text-gray-900 mb-4">Report Preview</h3>
+          <h3 className="text-xl font-semibold text-gray-900 mb-4">{t('export.preview')}</h3>
           
           <div className="space-y-6">
             {/* Summary Sheet Preview */}
             <div>
               <div className="flex items-center space-x-2 mb-3">
                 <div className="w-2 h-6 bg-purple-500 rounded"></div>
-                <h4 className="font-semibold text-gray-800">Sheet 1: Summary</h4>
+                <h4 className="font-semibold text-gray-800">{t('export.sheetSummary')}</h4>
               </div>
               <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
                 <div className="grid grid-cols-2 gap-2">
-                  <span className="font-medium text-gray-600">Trip Name:</span>
+                  <span className="font-medium text-gray-600">{t('home.tripName')}:</span>
                   <span className="text-gray-900">{trip.name}</span>
                   
-                  <span className="font-medium text-gray-600">Currency:</span>
+                  <span className="font-medium text-gray-600">{t('home.currency')}:</span>
                   <span className="text-gray-900">{trip.currency}</span>
                   
-                  <span className="font-medium text-gray-600">Dates:</span>
+                  <span className="font-medium text-gray-600">{t('home.startDate')} - {t('home.endDate')}:</span>
                   <span className="text-gray-900">
                     {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
                   </span>
                   
-                  <span className="font-medium text-gray-600">Total Expenses:</span>
+                  <span className="font-medium text-gray-600">{t('dashboard.totalExpenses')}:</span>
                   <span className="text-gray-900 font-semibold">
                     {formatCurrency(totalExpenses, trip.currency)}
                   </span>
                   
-                  <span className="font-medium text-gray-600">Number of Expenses:</span>
+                  <span className="font-medium text-gray-600">{t('dashboard.numExpenses')}:</span>
                   <span className="text-gray-900">{trip.expenses.length}</span>
                   
-                  <span className="font-medium text-gray-600">Number of People:</span>
+                  <span className="font-medium text-gray-600">{t('dashboard.numPeople')}:</span>
                   <span className="text-gray-900">{trip.people.length}</span>
                   
-                  <span className="font-medium text-gray-600">Average per Person:</span>
+                  <span className="font-medium text-gray-600">{t('dashboard.avgPerPerson')}:</span>
                   <span className="text-gray-900 font-semibold">
                     {formatCurrency(averagePerPerson, trip.currency)}
                   </span>
@@ -125,17 +127,17 @@ const ExportPage: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-3">
                 <div className="w-2 h-6 bg-blue-500 rounded"></div>
-                <h4 className="font-semibold text-gray-800">Sheet 2: All Expenses</h4>
+                <h4 className="font-semibold text-gray-800">{t('export.sheetExpenses')}</h4>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">
-                  Complete list of {trip.expenses.length} expense{trip.expenses.length !== 1 ? 's' : ''} with:
+                  {t('expense.total')}: {trip.expenses.length}
                 </p>
                 <ul className="text-sm text-gray-600 space-y-1 ml-4">
-                  <li>• Date, Description, Category</li>
-                  <li>• Amount and Currency</li>
-                  <li>• Paid By and Split Details</li>
-                  <li>• Notes</li>
+                  <li>• {t('expense.date')}, {t('expense.description')}, {t('expense.category')}</li>
+                  <li>• {t('expense.amount')}</li>
+                  <li>• {t('expense.paidBy')}</li>
+                  <li>• {t('expense.notes')}</li>
                 </ul>
               </div>
             </div>
@@ -144,11 +146,11 @@ const ExportPage: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-3">
                 <div className="w-2 h-6 bg-green-500 rounded"></div>
-                <h4 className="font-semibold text-gray-800">Sheet 3: Per-Person Breakdown</h4>
+                <h4 className="font-semibold text-gray-800">{t('export.sheetPerPerson')}</h4>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600 mb-2">
-                  Individual breakdown for {trip.people.length} person{trip.people.length !== 1 ? 's' : ''}:
+                  {t('people.title')}: {trip.people.length}
                 </p>
                 <div className="space-y-1">
                   {trip.people.slice(0, 3).map(person => (
@@ -170,11 +172,11 @@ const ExportPage: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-3">
                 <div className="w-2 h-6 bg-yellow-500 rounded"></div>
-                <h4 className="font-semibold text-gray-800">Sheet 4: Category Breakdown</h4>
+                <h4 className="font-semibold text-gray-800">{t('export.sheetCategories')}</h4>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">
-                  Spending analysis by category with totals and percentages
+                  {t('dashboard.categoryBreakdown')}
                 </p>
               </div>
             </div>
@@ -183,11 +185,11 @@ const ExportPage: React.FC = () => {
             <div>
               <div className="flex items-center space-x-2 mb-3">
                 <div className="w-2 h-6 bg-red-500 rounded"></div>
-                <h4 className="font-semibold text-gray-800">Sheet 5: Settlement</h4>
+                <h4 className="font-semibold text-gray-800">{t('export.sheetSettlement')}</h4>
               </div>
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-sm text-gray-600">
-                  Simplified settlement plan showing who owes whom and how much
+                  {t('settlement.plan')}
                 </p>
               </div>
             </div>
@@ -199,11 +201,9 @@ const ExportPage: React.FC = () => {
           <div className="flex items-start space-x-3">
             <div className="text-2xl">💡</div>
             <div className="flex-1">
-              <h4 className="font-semibold text-blue-900 mb-1">What's Included</h4>
+              <h4 className="font-semibold text-blue-900 mb-1">{t('export.title')}</h4>
               <p className="text-sm text-blue-800">
-                The Excel file contains 5 comprehensive sheets with all your trip data:
-                summary, detailed expenses, per-person breakdown, category analysis, and settlement plan.
-                Perfect for sharing with your travel companions or keeping for records.
+                {t('export.download')}
               </p>
             </div>
           </div>
@@ -215,7 +215,7 @@ const ExportPage: React.FC = () => {
             onClick={() => navigate(`/trip/${id}`)}
             className="px-6 py-2 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
           >
-            Back to Dashboard
+            {t('common.back')}
           </button>
         </div>
       </div>

@@ -4,15 +4,19 @@ import Layout from '../components/Layout';
 
 import ReceiptUploader from '../components/ReceiptUploader';
 import SplitSelector from '../components/SplitSelector';
+import ItemSplitter from '../components/ItemSplitter';
+import CurrencySelector from '../components/CurrencySelector';
 import Toast from '../components/Toast';
-import { Trip, Expense, ExpenseCategory, Split, ParsedReceipt } from '../types';
+import { Trip, Expense, ExpenseCategory, Split, ParsedReceipt, ExpenseItem } from '../types';
 import { storage } from '../utils/storage';
 import { generateId } from '../utils/helpers';
 import { categories } from '../utils/categories';
+import { useI18n } from '../contexts/I18nContext';
 
 const AddExpense: React.FC = () => {
   const { id, expenseId } = useParams<{ id: string; expenseId?: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
@@ -26,11 +30,13 @@ const AddExpense: React.FC = () => {
     notes: '',
     receiptUrl: '',
     receiptType: undefined as 'image' | 'pdf' | undefined,
-    ocrText: ''
+    ocrText: '',
+    currency: ''
   });
 
-  const [splitMethod, setSplitMethod] = useState<'equal' | 'exact' | 'percentage'>('equal');
+  const [splitMethod, setSplitMethod] = useState<'equal' | 'exact' | 'percentage' | 'items'>('equal');
   const [splits, setSplits] = useState<Split[]>([]);
+  const [items, setItems] = useState<ExpenseItem[]>([]);
 
   useEffect(() => {
     const loadTrip = () => {
@@ -52,15 +58,19 @@ const AddExpense: React.FC = () => {
                 notes: expense.notes || '',
                 receiptUrl: expense.receiptUrl || '',
                 receiptType: expense.receiptType,
-                ocrText: expense.ocrText || ''
+                ocrText: expense.ocrText || '',
+                currency: expense.currency || loadedTrip.currency
               });
               setSplitMethod(expense.splitMethod);
               setSplits(expense.splits);
+              if (expense.items) {
+                setItems(expense.items);
+              }
             }
           } else {
             // Set default payer to first person
             if (loadedTrip.people.length > 0) {
-              setFormData(prev => ({ ...prev, paidBy: loadedTrip.people[0].id }));
+              setFormData(prev => ({ ...prev, paidBy: loadedTrip.people[0].id, currency: loadedTrip.currency }));
             }
           }
         } else {
@@ -71,6 +81,27 @@ const AddExpense: React.FC = () => {
     
     loadTrip();
   }, [id, expenseId, navigate]);
+
+  // Auto-calculate splits from items when splitMethod is 'items'
+  useEffect(() => {
+    if (splitMethod === 'items' && items.length > 0) {
+      const personTotals = new Map<string, number>();
+      
+      items.forEach(item => {
+        const perPerson = item.amount / item.splitAmong.length;
+        item.splitAmong.forEach(personId => {
+          personTotals.set(personId, (personTotals.get(personId) || 0) + perPerson);
+        });
+      });
+
+      const newSplits: Split[] = Array.from(personTotals.entries()).map(([personId, amount]) => ({
+        personId,
+        amount
+      }));
+
+      setSplits(newSplits);
+    }
+  }, [splitMethod, items]);
 
   const handleReceiptUpload = (
     receiptUrl: string, 
@@ -149,6 +180,23 @@ const AddExpense: React.FC = () => {
       return;
     }
 
+    // Validate items for items split method
+    if (splitMethod === 'items') {
+      if (items.length === 0) {
+        setToast({ message: 'Please add at least one item', type: 'error' });
+        return;
+      }
+
+      const itemsTotal = items.reduce((sum, item) => sum + item.amount, 0);
+      if (Math.abs(itemsTotal - amount) > 0.01) {
+        setToast({ 
+          message: `Items total (${itemsTotal.toFixed(2)}) must equal expense amount (${amount.toFixed(2)})`, 
+          type: 'error' 
+        });
+        return;
+      }
+    }
+
     if (splits.length === 0) {
       setToast({ message: 'Please select at least one person to split with', type: 'error' });
       return;
@@ -168,12 +216,13 @@ const AddExpense: React.FC = () => {
       id: expenseId || generateId(),
       description: formData.description.trim(),
       amount,
-      currency: trip.currency,
+      currency: formData.currency || trip.currency,
       date: formData.date,
       category: formData.category,
       paidBy: formData.paidBy,
       splitMethod,
       splits,
+      items: splitMethod === 'items' ? items : undefined,
       receiptUrl: formData.receiptUrl || undefined,
       receiptType: formData.receiptType,
       ocrText: formData.ocrText || undefined,
@@ -204,24 +253,24 @@ const AddExpense: React.FC = () => {
   };
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   if (trip.people.length === 0) {
     return (
-      <Layout title={expenseId ? 'Edit Expense' : 'Add Expense'} backTo={`/trip/${id}`}>
+      <Layout title={expenseId ? t('expense.edit') : t('expense.add')} backTo={`/trip/${id}`}>
         <div className="max-w-4xl mx-auto">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
             <div className="text-5xl mb-4">⚠️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No People Added</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('people.noPeople')}</h3>
             <p className="text-gray-600 mb-4">
-              You need to add people to the trip before creating expenses.
+              {t('people.noPeople')}
             </p>
             <button
               onClick={() => navigate(`/trip/${id}/people`)}
               className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              Add People
+              {t('people.addPerson')}
             </button>
           </div>
         </div>
@@ -230,19 +279,19 @@ const AddExpense: React.FC = () => {
   }
 
   return (
-    <Layout title={expenseId ? 'Edit Expense' : 'Add Expense'} backTo={`/trip/${id}`}>
+    <Layout title={expenseId ? t('expense.edit') : t('expense.add')} backTo={`/trip/${id}`}>
       <div className="max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.description')}</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
+                  {t('expense.description')} *
                   {autoFilledFields.has('description') && (
-                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                   )}
                 </label>
                 <input
@@ -267,37 +316,44 @@ const AddExpense: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount ({trip.currency}) *
+                    {t('expense.amount')} *
                     {autoFilledFields.has('amount') && (
-                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                      <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                     )}
                   </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.amount}
-                    onChange={(e) => {
-                      setFormData({ ...formData, amount: e.target.value });
-                      setAutoFilledFields(prev => {
-                        const next = new Set(prev);
-                        next.delete('amount');
-                        return next;
-                      });
-                    }}
-                    className={`w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                      autoFilledFields.has('amount') ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
-                    }`}
-                    placeholder="0.00"
-                    required
-                  />
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.amount}
+                      onChange={(e) => {
+                        setFormData({ ...formData, amount: e.target.value });
+                        setAutoFilledFields(prev => {
+                          const next = new Set(prev);
+                          next.delete('amount');
+                          return next;
+                        });
+                      }}
+                      className={`flex-1 px-3 py-2 border rounded-md focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                        autoFilledFields.has('amount') ? 'border-blue-400 bg-blue-50' : 'border-gray-300'
+                      }`}
+                      placeholder="0.00"
+                      required
+                    />
+                    <CurrencySelector
+                      value={formData.currency || trip.currency}
+                      onChange={(currency) => setFormData({ ...formData, currency })}
+                      className="w-32"
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date *
+                    {t('expense.date')} *
                     {autoFilledFields.has('date') && (
-                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                      <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                     )}
                   </label>
                   <input
@@ -321,9 +377,9 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
+                  {t('expense.category')} *
                   {autoFilledFields.has('category') && (
-                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                   )}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -360,7 +416,7 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By *
+                  {t('expense.paidBy')} *
                 </label>
                 <select
                   value={formData.paidBy}
@@ -379,7 +435,7 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
+                  {t('expense.notes')}
                 </label>
                 <textarea
                   value={formData.notes}
@@ -394,7 +450,7 @@ const AddExpense: React.FC = () => {
 
           {/* Receipt Upload */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Receipt</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.uploadReceipt')}</h2>
             <ReceiptUploader 
               onReceiptUpload={handleReceiptUpload}
               currentReceipt={formData.receiptUrl}
@@ -409,15 +465,79 @@ const AddExpense: React.FC = () => {
 
           {/* Split Configuration */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Split Expense</h2>
-            <SplitSelector
-              people={trip.people}
-              totalAmount={parseFloat(formData.amount) || 0}
-              splitMethod={splitMethod}
-              splits={splits}
-              onSplitMethodChange={setSplitMethod}
-              onSplitsChange={setSplits}
-            />
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.splitMethod')}</h2>
+            
+            {/* Split Method Selector */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('expense.splitMethod')}
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSplitMethod('equal')}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    splitMethod === 'equal'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('expense.splitEqual')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitMethod('exact')}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    splitMethod === 'exact'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('expense.splitExact')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitMethod('percentage')}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    splitMethod === 'percentage'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('expense.splitPercentage')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSplitMethod('items')}
+                  className={`px-4 py-2 rounded-md font-medium transition-colors ${
+                    splitMethod === 'items'
+                      ? 'bg-primary-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {t('expense.splitByItems')}
+                </button>
+              </div>
+            </div>
+
+            {/* Show ItemSplitter or SplitSelector based on method */}
+            {splitMethod === 'items' ? (
+              <ItemSplitter
+                people={trip.people}
+                items={items}
+                totalAmount={parseFloat(formData.amount) || 0}
+                onItemsChange={setItems}
+              />
+            ) : (
+              <SplitSelector
+                people={trip.people}
+                totalAmount={parseFloat(formData.amount) || 0}
+                splitMethod={splitMethod}
+                splits={splits}
+                onSplitMethodChange={setSplitMethod}
+                onSplitsChange={setSplits}
+              />
+            )}
           </div>
 
           {/* Submit Buttons */}
@@ -427,13 +547,13 @@ const AddExpense: React.FC = () => {
               onClick={() => navigate(`/trip/${id}`)}
               className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="flex-1 px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              {expenseId ? 'Update Expense' : 'Add Expense'}
+              {expenseId ? t('expense.edit') : t('expense.add')}
             </button>
           </div>
         </form>

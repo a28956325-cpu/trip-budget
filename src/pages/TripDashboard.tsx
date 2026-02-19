@@ -9,10 +9,12 @@ import { storage } from '../utils/storage';
 import { formatCurrency } from '../utils/helpers';
 import { getCategoryName, getCategoryColor } from '../utils/categories';
 import { getPersonBalance } from '../utils/settlement';
+import { useI18n } from '../contexts/I18nContext';
 
 const TripDashboard: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
 
   useEffect(() => {
@@ -27,7 +29,7 @@ const TripDashboard: React.FC = () => {
   }, [id, navigate]);
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   const totalExpenses = trip.expenses.reduce((sum, e) => sum + e.amount, 0);
@@ -67,25 +69,25 @@ const TripDashboard: React.FC = () => {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <SummaryCard
-            title="Total Expenses"
+            title={t('dashboard.totalExpenses')}
             value={formatCurrency(totalExpenses, trip.currency)}
             icon="💰"
             color="primary"
           />
           <SummaryCard
-            title="Number of Expenses"
+            title={t('dashboard.numExpenses')}
             value={trip.expenses.length}
             icon="📝"
             color="accent"
           />
           <SummaryCard
-            title="People"
+            title={t('dashboard.numPeople')}
             value={trip.people.length}
             icon="👥"
             color="success"
           />
           <SummaryCard
-            title="Average per Person"
+            title={t('dashboard.avgPerPerson')}
             value={formatCurrency(averagePerPerson, trip.currency)}
             icon="📊"
             subtitle={trip.people.length > 0 ? '' : 'Add people first'}
@@ -96,7 +98,7 @@ const TripDashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Category Breakdown */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Category Breakdown</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.categoryBreakdown')}</h3>
             {categoryData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
@@ -121,7 +123,7 @@ const TripDashboard: React.FC = () => {
               <div className="h-64 flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <div className="text-4xl mb-2">📊</div>
-                  <p>No expenses yet</p>
+                  <p>{t('expense.noExpenses')}</p>
                 </div>
               </div>
             )}
@@ -129,7 +131,7 @@ const TripDashboard: React.FC = () => {
 
           {/* Per-Person Spending */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Per-Person Spending</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.perPersonSpending')}</h3>
             {personData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={personData}>
@@ -146,7 +148,7 @@ const TripDashboard: React.FC = () => {
               <div className="h-64 flex items-center justify-center text-gray-500">
                 <div className="text-center">
                   <div className="text-4xl mb-2">👥</div>
-                  <p>Add people to see breakdown</p>
+                  <p>{t('people.noPeople')}</p>
                 </div>
               </div>
             )}
@@ -156,7 +158,7 @@ const TripDashboard: React.FC = () => {
         {/* Recent Expenses */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Recent Expenses</h3>
+            <h3 className="text-lg font-semibold text-gray-900">{t('dashboard.recentExpenses')}</h3>
             <Link
               to={`/trip/${trip.id}/expenses`}
               className="text-sm text-primary-600 hover:text-primary-700 font-medium"
@@ -179,26 +181,25 @@ const TripDashboard: React.FC = () => {
           ) : (
             <div className="text-center py-8 text-gray-500">
               <div className="text-4xl mb-2">💸</div>
-              <p>No expenses yet</p>
+              <p>{t('expense.noExpenses')}</p>
               <button
                 onClick={() => navigate(`/trip/${trip.id}/expense/new`)}
                 className="mt-4 px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
               >
-                Add First Expense
+                {t('expense.add')}
               </button>
             </div>
           )}
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Link
             to={`/trip/${trip.id}/expense/new`}
             className="bg-gradient-to-br from-primary-500 to-primary-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
           >
             <div className="text-3xl mb-2">➕</div>
-            <h4 className="font-semibold text-lg">Add Expense</h4>
-            <p className="text-sm text-primary-100 mt-1">Track a new expense</p>
+            <h4 className="font-semibold text-lg">{t('expense.add')}</h4>
           </Link>
 
           <Link
@@ -206,8 +207,17 @@ const TripDashboard: React.FC = () => {
             className="bg-gradient-to-br from-accent-500 to-accent-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
           >
             <div className="text-3xl mb-2">👥</div>
-            <h4 className="font-semibold text-lg">Manage People</h4>
-            <p className="text-sm text-accent-100 mt-1">Add or remove travelers</p>
+            <h4 className="font-semibold text-lg">{t('people.title')}</h4>
+            <p className="text-sm text-accent-100 mt-1">{t('nav.people')}</p>
+          </Link>
+
+          <Link
+            to={`/trip/${trip.id}/budget`}
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
+          >
+            <div className="text-3xl mb-2">💰</div>
+            <h4 className="font-semibold text-lg">{t('budget.title')}</h4>
+            <p className="text-sm text-orange-100 mt-1">Track spending</p>
           </Link>
 
           <Link
@@ -215,8 +225,8 @@ const TripDashboard: React.FC = () => {
             className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
           >
             <div className="text-3xl mb-2">💵</div>
-            <h4 className="font-semibold text-lg">Settlement</h4>
-            <p className="text-sm text-green-100 mt-1">See who owes whom</p>
+            <h4 className="font-semibold text-lg">{t('settlement.title')}</h4>
+            <p className="text-sm text-green-100 mt-1">{t('nav.settlement')}</p>
           </Link>
 
           <Link
@@ -224,8 +234,8 @@ const TripDashboard: React.FC = () => {
             className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
           >
             <div className="text-3xl mb-2">📥</div>
-            <h4 className="font-semibold text-lg">Export</h4>
-            <p className="text-sm text-purple-100 mt-1">Download Excel report</p>
+            <h4 className="font-semibold text-lg">{t('export.title')}</h4>
+            <p className="text-sm text-purple-100 mt-1">{t('nav.export')}</p>
           </Link>
         </div>
       </div>
