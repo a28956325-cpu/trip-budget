@@ -122,9 +122,19 @@ const SettlementPage: React.FC = () => {
 
         {/* Settlement Plan */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">{t('settlement.plan')}</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xl font-semibold text-gray-900">{t('settlement.easySettlement')}</h2>
+            {settlements.length > 0 && (
+              <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                {t('settlement.transferCount').replace('{count}', settlements.length.toString())}
+              </span>
+            )}
+          </div>
           <p className="text-sm text-gray-600 mb-6">
-            {t('settlement.plan')}
+            {settlements.length > 0 
+              ? t('settlement.easySettlement') + ' - ' + t('settlement.plan')
+              : t('settlement.noSettlement')
+            }
           </p>
 
           {settlements.length === 0 ? (
@@ -170,9 +180,9 @@ const SettlementPage: React.FC = () => {
                 <div className="flex items-start space-x-3">
                   <div className="text-2xl">💡</div>
                   <div>
-                    <h4 className="font-semibold text-blue-900 mb-1">{t('settlement.plan')}</h4>
+                    <h4 className="font-semibold text-blue-900 mb-1">{t('settlement.easySettlement')}</h4>
                     <p className="text-sm text-blue-800">
-                      {t('settlement.plan')}
+                      {t('settlement.transferCount').replace('{count}', settlements.length.toString())}
                     </p>
                   </div>
                 </div>

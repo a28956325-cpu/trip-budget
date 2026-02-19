@@ -4,11 +4,11 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import Layout from '../components/Layout';
 import SummaryCard from '../components/SummaryCard';
 import ExpenseCard from '../components/ExpenseCard';
-import { Trip } from '../types';
+import { Trip, ExpenseCategory } from '../types';
 import { storage } from '../utils/storage';
 import { formatCurrency } from '../utils/helpers';
 import { getCategoryName, getCategoryColor } from '../utils/categories';
-import { getPersonBalance } from '../utils/settlement';
+import { calculatePersonSpending, calculatePersonPaid } from '../utils/settlement';
 import { useI18n } from '../contexts/I18nContext';
 
 const TripDashboard: React.FC = () => {
@@ -43,18 +43,31 @@ const TripDashboard: React.FC = () => {
       return map;
     }, new Map<string, number>())
   ).map(([category, amount]) => ({
-    name: getCategoryName(category as any).split(' ')[0],
+    name: getCategoryName(category as ExpenseCategory).split(' ')[0],
     value: amount,
-    color: getCategoryColor(category as any)
+    color: getCategoryColor(category as ExpenseCategory)
   }));
 
-  // Per-person spending data
-  const personData = trip.people.map(person => {
-    const balance = getPersonBalance(trip, person.id);
+  // Per-person spending data - actual consumption/spending
+  const spending = calculatePersonSpending(trip);
+  const spendingData = trip.people.map(person => ({
+    name: person.name,
+    spending: spending.get(person.id) || 0,
+    color: person.color
+  }));
+
+  // Payment overview data - who paid vs their share
+  const paid = calculatePersonPaid(trip);
+  const paymentData = trip.people.map(person => {
+    const personPaid = paid.get(person.id) || 0;
+    const personSpending = spending.get(person.id) || 0;
+    const netBalance = personPaid - personSpending;
+    
     return {
       name: person.name,
-      paid: balance.paid,
-      owed: balance.owed,
+      paid: personPaid,
+      share: personSpending,
+      netBalance: netBalance,
       color: person.color
     };
   });
@@ -129,19 +142,18 @@ const TripDashboard: React.FC = () => {
             )}
           </div>
 
-          {/* Per-Person Spending */}
+          {/* Per-Person Spending - Actual Consumption */}
           <div className="bg-white rounded-xl shadow-md p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.perPersonSpending')}</h3>
-            {personData.length > 0 ? (
+            {spendingData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={personData}>
+                <BarChart data={spendingData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip formatter={(value) => formatCurrency(value as number, trip.currency)} />
                   <Legend />
-                  <Bar dataKey="paid" fill="#0ea5e9" name="Paid" />
-                  <Bar dataKey="owed" fill="#f59e0b" name="Owed" />
+                  <Bar dataKey="spending" fill="#8b5cf6" name={t('dashboard.spending')} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
@@ -153,6 +165,53 @@ const TripDashboard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Payment Overview - Paid vs Share */}
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">{t('dashboard.paymentOverview')}</h3>
+          {paymentData.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={paymentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip 
+                  formatter={(value) => formatCurrency(value as number, trip.currency)}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded shadow-lg">
+                          <p className="font-semibold text-gray-900 mb-1">{data.name}</p>
+                          <p className="text-sm text-blue-600">
+                            {t('dashboard.paid')}: {formatCurrency(data.paid, trip.currency)}
+                          </p>
+                          <p className="text-sm text-orange-600">
+                            {t('dashboard.share')}: {formatCurrency(data.share, trip.currency)}
+                          </p>
+                          <p className={`text-sm font-semibold ${data.netBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {t('dashboard.netBalance')}: {data.netBalance >= 0 ? '+' : ''}{formatCurrency(data.netBalance, trip.currency)}
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="paid" fill="#0ea5e9" name={t('dashboard.paid')} />
+                <Bar dataKey="share" fill="#f59e0b" name={t('dashboard.share')} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-64 flex items-center justify-center text-gray-500">
+              <div className="text-center">
+                <div className="text-4xl mb-2">👥</div>
+                <p>{t('people.noPeople')}</p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Recent Expenses */}

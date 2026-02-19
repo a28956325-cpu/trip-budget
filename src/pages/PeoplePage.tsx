@@ -154,7 +154,7 @@ const PeoplePage: React.FC = () => {
                             </span>
                           </span>
                           <span className="text-gray-600">
-                            {t('people.totalOwed')}: <span className="font-medium text-gray-900">
+                            {t('people.totalSpending')}: <span className="font-medium text-gray-900">
                               {formatCurrency(balance.owed, trip.currency)}
                             </span>
                           </span>
