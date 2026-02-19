@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import PersonAvatar from '../components/PersonAvatar';
+import ShareSettlement from '../components/ShareSettlement';
 import { Trip } from '../types';
 import { storage } from '../utils/storage';
 import { calculateBalances, calculateSettlements } from '../utils/settlement';
@@ -179,6 +180,9 @@ const SettlementPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Share Settlement */}
+        <ShareSettlement trip={trip} settlements={settlements} />
 
         {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

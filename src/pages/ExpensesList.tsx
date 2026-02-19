@@ -4,11 +4,13 @@ import Layout from '../components/Layout';
 import ExpenseCard from '../components/ExpenseCard';
 import ConfirmDialog from '../components/ConfirmDialog';
 import Toast from '../components/Toast';
-import { Trip, Expense } from '../types';
+import CSVImporter from '../components/CSVImporter';
+import { Trip, Expense, Split } from '../types';
 import { storage } from '../utils/storage';
-import { formatCurrency } from '../utils/helpers';
+import { formatCurrency, generateId } from '../utils/helpers';
 import { categories } from '../utils/categories';
 import { useI18n } from '../contexts/I18nContext';
+import { CSVRow } from '../utils/csv';
 
 const ExpensesList: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -18,6 +20,7 @@ const ExpensesList: React.FC = () => {
   const [filteredExpenses, setFilteredExpenses] = useState<Expense[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [showCSVImport, setShowCSVImport] = useState(false);
 
   const [filters, setFilters] = useState({
     category: 'all',
@@ -95,6 +98,47 @@ const ExpensesList: React.FC = () => {
     setToast({ message: 'Expense deleted', type: 'success' });
   };
 
+  const handleCSVImport = (rows: CSVRow[], paidBy: string, splitAmongAll: boolean) => {
+    if (!trip) return;
+
+    const newExpenses: Expense[] = rows.map(row => {
+      const splits: Split[] = splitAmongAll
+        ? trip.people.map(person => ({
+            personId: person.id,
+            amount: row.amount / trip.people.length,
+            percentage: 100 / trip.people.length
+          }))
+        : [{
+            personId: paidBy,
+            amount: row.amount,
+            percentage: 100
+          }];
+
+      return {
+        id: generateId(),
+        description: row.description,
+        amount: row.amount,
+        currency: trip.currency,
+        date: row.date,
+        category: row.category || 'other',
+        paidBy: paidBy,
+        splitMethod: 'equal',
+        splits: splits,
+        createdAt: new Date().toISOString()
+      };
+    });
+
+    const updatedTrip = {
+      ...trip,
+      expenses: [...trip.expenses, ...newExpenses]
+    };
+
+    storage.saveTrip(updatedTrip);
+    setTrip(updatedTrip);
+    setToast({ message: `${newExpenses.length} expenses imported successfully`, type: 'success' });
+    setShowCSVImport(false);
+  };
+
   if (!trip) {
     return <Layout><div>{t('common.loading')}</div></Layout>;
   }
@@ -166,12 +210,21 @@ const ExpensesList: React.FC = () => {
             <div className="text-sm text-gray-600">
               Showing {filteredExpenses.length} of {trip.expenses.length} expenses
             </div>
-            <button
-              onClick={() => setFilters({ category: 'all', person: 'all', sortBy: 'date-desc' })}
-              className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-            >
-              Reset Filters
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowCSVImport(true)}
+                className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium flex items-center gap-2"
+              >
+                <span>📁</span>
+                <span>Import CSV</span>
+              </button>
+              <button
+                onClick={() => setFilters({ category: 'all', person: 'all', sortBy: 'date-desc' })}
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              >
+                Reset Filters
+              </button>
+            </div>
           </div>
         </div>
 
@@ -252,6 +305,15 @@ const ExpensesList: React.FC = () => {
           type={toast.type}
           isVisible={true}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {showCSVImport && (
+        <CSVImporter
+          people={trip.people}
+          tripCurrency={trip.currency}
+          onImport={handleCSVImport}
+          onClose={() => setShowCSVImport(false)}
         />
       )}
     </Layout>

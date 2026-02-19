@@ -193,7 +193,7 @@ const TripDashboard: React.FC = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <Link
             to={`/trip/${trip.id}/expense/new`}
             className="bg-gradient-to-br from-primary-500 to-primary-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
@@ -209,6 +209,15 @@ const TripDashboard: React.FC = () => {
             <div className="text-3xl mb-2">👥</div>
             <h4 className="font-semibold text-lg">{t('people.title')}</h4>
             <p className="text-sm text-accent-100 mt-1">{t('nav.people')}</p>
+          </Link>
+
+          <Link
+            to={`/trip/${trip.id}/budget`}
+            className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-xl shadow-md hover:shadow-lg transition-all transform hover:-translate-y-1"
+          >
+            <div className="text-3xl mb-2">💰</div>
+            <h4 className="font-semibold text-lg">{t('budget.title')}</h4>
+            <p className="text-sm text-orange-100 mt-1">Track spending</p>
           </Link>
 
           <Link
