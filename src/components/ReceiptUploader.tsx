@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { fileToBase64 } from '../utils/helpers';
-import { performOCR, parseReceipt } from '../utils/ocr';
+import { performOCR, parseReceipt, extractTextFromPDF, extractTextFromPDFWithOCR, MIN_PDF_TEXT_LENGTH } from '../utils/ocr';
 import { ParsedReceipt } from '../types';
 
 interface ReceiptUploaderProps {
@@ -10,6 +10,7 @@ interface ReceiptUploaderProps {
 
 const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, currentReceipt }) => {
   const [isProcessing, setIsProcessing] = useState(false);
+  const [processingMessage, setProcessingMessage] = useState('');
   const [preview, setPreview] = useState<string | null>(currentReceipt || null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,20 +33,36 @@ const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, curr
       const base64 = await fileToBase64(file);
       setPreview(base64);
 
-      if (isImage) {
-        // Perform OCR and smart parsing on images
-        const ocrText = await performOCR(base64);
-        const parsedData = parseReceipt(ocrText);
-        onReceiptUpload(base64, 'image', parsedData);
+      if (isPDF) {
+        // Extract text directly from PDF (no OCR)
+        setProcessingMessage('📄 正在讀取 PDF... Reading PDF...');
+        const pdfText = await extractTextFromPDF(file);
+        
+        // Check if PDF has enough text (not a scanned PDF)
+        if (pdfText.trim().length >= MIN_PDF_TEXT_LENGTH) {
+          // PDF has text, use direct extraction
+          const parsedData = parseReceipt(pdfText, 'pdf-text');
+          onReceiptUpload(base64, 'pdf', parsedData);
+        } else {
+          // Scanned PDF, fall back to OCR
+          setProcessingMessage('🔍 正在辨識掃描 PDF... Analyzing scanned PDF...');
+          const ocrText = await extractTextFromPDFWithOCR(file);
+          const parsedData = parseReceipt(ocrText, 'ocr');
+          onReceiptUpload(base64, 'pdf', parsedData);
+        }
       } else {
-        // For PDFs, just store the file
-        onReceiptUpload(base64, 'pdf');
+        // Perform OCR and smart parsing on images
+        setProcessingMessage('🔍 正在辨識收據... Analyzing receipt...');
+        const ocrText = await performOCR(base64);
+        const parsedData = parseReceipt(ocrText, 'ocr');
+        onReceiptUpload(base64, 'image', parsedData);
       }
     } catch (error) {
       console.error('Error processing file:', error);
       alert('Error processing file. Please try again.');
     } finally {
       setIsProcessing(false);
+      setProcessingMessage('');
     }
   };
 
@@ -127,7 +144,7 @@ const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({ onReceiptUpload, curr
       {isProcessing && (
         <div className="flex items-center justify-center space-x-2 text-primary-600">
           <div className="animate-spin rounded-full h-4 w-4 border-2 border-primary-600 border-t-transparent"></div>
-          <span className="text-sm">🔍 正在辨識收據... Analyzing receipt...</span>
+          <span className="text-sm">{processingMessage || '🔍 正在辨識收據... Analyzing receipt...'}</span>
         </div>
       )}
     </div>
