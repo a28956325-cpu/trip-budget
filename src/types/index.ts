@@ -53,3 +53,17 @@ export interface CategoryInfo {
   emoji: string;
   color: string;
 }
+
+export interface ParsedReceipt {
+  amount: number | null;
+  category: ExpenseCategory | null;
+  description: string | null;
+  date: string | null;
+  rawText: string;
+  confidence: {
+    amount: 'high' | 'medium' | 'low' | 'none';
+    category: 'high' | 'medium' | 'low' | 'none';
+    description: 'high' | 'medium' | 'low' | 'none';
+    date: 'high' | 'medium' | 'low' | 'none';
+  };
+}
