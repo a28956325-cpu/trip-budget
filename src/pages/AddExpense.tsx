@@ -9,10 +9,12 @@ import { Trip, Expense, ExpenseCategory, Split, ParsedReceipt } from '../types';
 import { storage } from '../utils/storage';
 import { generateId } from '../utils/helpers';
 import { categories } from '../utils/categories';
+import { useI18n } from '../contexts/I18nContext';
 
 const AddExpense: React.FC = () => {
   const { id, expenseId } = useParams<{ id: string; expenseId?: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [autoFilledFields, setAutoFilledFields] = useState<Set<string>>(new Set());
@@ -204,24 +206,24 @@ const AddExpense: React.FC = () => {
   };
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   if (trip.people.length === 0) {
     return (
-      <Layout title={expenseId ? 'Edit Expense' : 'Add Expense'} backTo={`/trip/${id}`}>
+      <Layout title={expenseId ? t('expense.edit') : t('expense.add')} backTo={`/trip/${id}`}>
         <div className="max-w-4xl mx-auto">
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-8 text-center">
             <div className="text-5xl mb-4">⚠️</div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">No People Added</h3>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('people.noPeople')}</h3>
             <p className="text-gray-600 mb-4">
-              You need to add people to the trip before creating expenses.
+              {t('people.noPeople')}
             </p>
             <button
               onClick={() => navigate(`/trip/${id}/people`)}
               className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              Add People
+              {t('people.addPerson')}
             </button>
           </div>
         </div>
@@ -230,19 +232,19 @@ const AddExpense: React.FC = () => {
   }
 
   return (
-    <Layout title={expenseId ? 'Edit Expense' : 'Add Expense'} backTo={`/trip/${id}`}>
+    <Layout title={expenseId ? t('expense.edit') : t('expense.add')} backTo={`/trip/${id}`}>
       <div className="max-w-4xl mx-auto">
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Basic Info */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Basic Information</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.description')}</h2>
             
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description *
+                  {t('expense.description')} *
                   {autoFilledFields.has('description') && (
-                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                   )}
                 </label>
                 <input
@@ -267,9 +269,9 @@ const AddExpense: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Amount ({trip.currency}) *
+                    {t('expense.amount')} ({trip.currency}) *
                     {autoFilledFields.has('amount') && (
-                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                      <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                     )}
                   </label>
                   <input
@@ -295,9 +297,9 @@ const AddExpense: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Date *
+                    {t('expense.date')} *
                     {autoFilledFields.has('date') && (
-                      <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                      <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                     )}
                   </label>
                   <input
@@ -321,9 +323,9 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Category *
+                  {t('expense.category')} *
                   {autoFilledFields.has('category') && (
-                    <span className="ml-2 text-xs text-blue-600 font-normal">✨ Auto-detected</span>
+                    <span className="ml-2 text-xs text-blue-600 font-normal">{t('expense.autoDetected')}</span>
                   )}
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -360,7 +362,7 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Paid By *
+                  {t('expense.paidBy')} *
                 </label>
                 <select
                   value={formData.paidBy}
@@ -379,7 +381,7 @@ const AddExpense: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notes
+                  {t('expense.notes')}
                 </label>
                 <textarea
                   value={formData.notes}
@@ -394,7 +396,7 @@ const AddExpense: React.FC = () => {
 
           {/* Receipt Upload */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Receipt</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.uploadReceipt')}</h2>
             <ReceiptUploader 
               onReceiptUpload={handleReceiptUpload}
               currentReceipt={formData.receiptUrl}
@@ -409,7 +411,7 @@ const AddExpense: React.FC = () => {
 
           {/* Split Configuration */}
           <div className="bg-white rounded-xl shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Split Expense</h2>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('expense.splitMethod')}</h2>
             <SplitSelector
               people={trip.people}
               totalAmount={parseFloat(formData.amount) || 0}
@@ -427,13 +429,13 @@ const AddExpense: React.FC = () => {
               onClick={() => navigate(`/trip/${id}`)}
               className="flex-1 px-6 py-3 bg-gray-100 text-gray-700 font-medium rounded-lg hover:bg-gray-200 transition-colors"
             >
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="flex-1 px-6 py-3 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              {expenseId ? 'Update Expense' : 'Add Expense'}
+              {expenseId ? t('expense.edit') : t('expense.add')}
             </button>
           </div>
         </form>

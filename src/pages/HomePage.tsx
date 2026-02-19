@@ -7,9 +7,11 @@ import { Trip } from '../types';
 import { storage } from '../utils/storage';
 import { generateId } from '../utils/helpers';
 import { formatDate } from '../utils/helpers';
+import { useI18n } from '../contexts/I18nContext';
 
 const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trips, setTrips] = useState<Trip[]>([]);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -81,12 +83,9 @@ const HomePage: React.FC = () => {
         <div className="text-center mb-12">
           <div className="text-6xl mb-4">✈️💰</div>
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            TravelSplit
+            {t('home.title')}
           </h1>
-          <p className="text-xl text-gray-600 mb-1">旅行分帳神器</p>
-          <p className="text-sm text-gray-500">
-            Track expenses, split bills, settle debts — all in one place
-          </p>
+          <p className="text-xl text-gray-600 mb-1">{t('home.subtitle')}</p>
         </div>
 
         {/* Create Trip Button */}
@@ -95,7 +94,7 @@ const HomePage: React.FC = () => {
             onClick={() => setShowCreateForm(true)}
             className="px-8 py-3 bg-gradient-to-r from-primary-600 to-primary-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
           >
-            + Create New Trip
+            + {t('home.createTrip')}
           </button>
         </div>
 
@@ -106,12 +105,12 @@ const HomePage: React.FC = () => {
               <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setShowCreateForm(false)}></div>
               
               <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Trip</h2>
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">{t('home.createTrip')}</h2>
                 
                 <form onSubmit={handleCreateTrip} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Trip Name *
+                      {t('home.tripName')} *
                     </label>
                     <input
                       type="text"
@@ -125,7 +124,7 @@ const HomePage: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
+                      {t('home.description')}
                     </label>
                     <textarea
                       value={formData.description}
@@ -138,7 +137,7 @@ const HomePage: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Currency
+                      {t('home.currency')}
                     </label>
                     <select
                       value={formData.currency}
@@ -157,7 +156,7 @@ const HomePage: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Start Date
+                        {t('home.startDate')}
                       </label>
                       <input
                         type="date"
@@ -170,7 +169,7 @@ const HomePage: React.FC = () => {
                     
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        End Date
+                        {t('home.endDate')}
                       </label>
                       <input
                         type="date"
@@ -188,13 +187,13 @@ const HomePage: React.FC = () => {
                       onClick={() => setShowCreateForm(false)}
                       className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 font-medium rounded-md hover:bg-gray-200 transition-colors"
                     >
-                      Cancel
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
                       className="flex-1 px-4 py-2 bg-primary-600 text-white font-medium rounded-md hover:bg-primary-700 transition-colors"
                     >
-                      Create Trip
+                      {t('home.createTrip')}
                     </button>
                   </div>
                 </form>
@@ -207,8 +206,7 @@ const HomePage: React.FC = () => {
         {trips.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🗺️</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No trips yet</h3>
-            <p className="text-gray-500">Create your first trip to get started!</p>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">{t('home.noTrips')}</h3>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -241,18 +239,18 @@ const HomePage: React.FC = () => {
                     
                     <div className="flex items-center justify-between text-sm mb-4">
                       <div>
-                        <span className="text-gray-600">Expenses:</span>
+                        <span className="text-gray-600">{t('nav.expenses')}:</span>
                         <span className="ml-1 font-semibold text-gray-900">{trip.expenses.length}</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">People:</span>
+                        <span className="text-gray-600">{t('nav.people')}:</span>
                         <span className="ml-1 font-semibold text-gray-900">{trip.people.length}</span>
                       </div>
                     </div>
                     
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <div>
-                        <span className="text-xs text-gray-500">Total</span>
+                        <span className="text-xs text-gray-500">{t('expense.total')}</span>
                         <p className="text-lg font-bold text-primary-600">
                           {trip.currency} {totalExpenses.toFixed(2)}
                         </p>
@@ -265,7 +263,7 @@ const HomePage: React.FC = () => {
                         }}
                         className="px-3 py-1.5 bg-red-50 text-red-600 text-sm font-medium rounded-md hover:bg-red-100 transition-colors opacity-0 group-hover:opacity-100"
                       >
-                        Delete
+                        {t('common.delete')}
                       </button>
                     </div>
                   </div>
@@ -279,10 +277,10 @@ const HomePage: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Delete Trip"
-        message="Are you sure you want to delete this trip? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('common.delete')}
+        message={t('home.deleteConfirm')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={() => deleteConfirm && handleDeleteTrip(deleteConfirm)}
         onCancel={() => setDeleteConfirm(null)}

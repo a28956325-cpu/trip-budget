@@ -9,10 +9,12 @@ import { storage } from '../utils/storage';
 import { generateId, getAvatarColor } from '../utils/helpers';
 import { getPersonBalance } from '../utils/settlement';
 import { formatCurrency } from '../utils/helpers';
+import { useI18n } from '../contexts/I18nContext';
 
 const PeoplePage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [trip, setTrip] = useState<Trip | null>(null);
   const [newPersonName, setNewPersonName] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
@@ -89,28 +91,28 @@ const PeoplePage: React.FC = () => {
   };
 
   if (!trip) {
-    return <Layout><div>Loading...</div></Layout>;
+    return <Layout><div>{t('common.loading')}</div></Layout>;
   }
 
   return (
-    <Layout title="Manage People" backTo={`/trip/${id}`}>
+    <Layout title={t('people.title')} backTo={`/trip/${id}`}>
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Add Person Form */}
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-4">Add New Person</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">{t('people.addPerson')}</h2>
           <form onSubmit={handleAddPerson} className="flex space-x-3">
             <input
               type="text"
               value={newPersonName}
               onChange={(e) => setNewPersonName(e.target.value)}
-              placeholder="Enter person's name"
+              placeholder={t('people.name')}
               className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             />
             <button
               type="submit"
               className="px-6 py-2 bg-primary-600 text-white font-medium rounded-lg hover:bg-primary-700 transition-colors"
             >
-              Add Person
+              {t('people.addPerson')}
             </button>
           </form>
         </div>
@@ -118,14 +120,13 @@ const PeoplePage: React.FC = () => {
         {/* People List */}
         <div className="bg-white rounded-xl shadow-md p-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">
-            Travelers ({trip.people.length})
+            {t('people.title')} ({trip.people.length})
           </h2>
 
           {trip.people.length === 0 ? (
             <div className="text-center py-12 text-gray-500">
               <div className="text-4xl mb-2">👥</div>
-              <p>No people added yet</p>
-              <p className="text-sm mt-1">Add people to start tracking expenses</p>
+              <p>{t('people.noPeople')}</p>
             </div>
           ) : (
             <div className="space-y-4">
@@ -148,12 +149,12 @@ const PeoplePage: React.FC = () => {
                         <h3 className="text-lg font-semibold text-gray-900">{person.name}</h3>
                         <div className="flex items-center space-x-4 mt-1 text-sm">
                           <span className="text-gray-600">
-                            Paid: <span className="font-medium text-gray-900">
+                            {t('people.totalPaid')}: <span className="font-medium text-gray-900">
                               {formatCurrency(balance.paid, trip.currency)}
                             </span>
                           </span>
                           <span className="text-gray-600">
-                            Owed: <span className="font-medium text-gray-900">
+                            {t('people.totalOwed')}: <span className="font-medium text-gray-900">
                               {formatCurrency(balance.owed, trip.currency)}
                             </span>
                           </span>
@@ -164,8 +165,8 @@ const PeoplePage: React.FC = () => {
                               ? 'text-red-600' 
                               : 'text-gray-600'
                           }`}>
-                            Balance: {formatCurrency(Math.abs(balance.balance), trip.currency)}
-                            {balance.balance > 0 ? ' (to receive)' : balance.balance < 0 ? ' (to pay)' : ''}
+                            {t('people.balance')}: {formatCurrency(Math.abs(balance.balance), trip.currency)}
+                            {balance.balance > 0 ? ` (${t('settlement.isOwed')})` : balance.balance < 0 ? ` (${t('settlement.owes')})` : ''}
                           </span>
                         </div>
                       </div>
@@ -179,9 +180,9 @@ const PeoplePage: React.FC = () => {
                           ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           : 'bg-red-50 text-red-600 hover:bg-red-100'
                       }`}
-                      title={hasExpenses ? 'Cannot remove person with expenses' : 'Remove person'}
+                      title={hasExpenses ? t('people.cannotRemove') : t('common.delete')}
                     >
-                      Remove
+                      {t('common.delete')}
                     </button>
                   </div>
                 );
@@ -195,10 +196,9 @@ const PeoplePage: React.FC = () => {
           <div className="flex items-start space-x-3">
             <div className="text-2xl">ℹ️</div>
             <div className="flex-1">
-              <h4 className="font-semibold text-blue-900 mb-1">Note</h4>
+              <h4 className="font-semibold text-blue-900 mb-1">{t('people.cannotRemove')}</h4>
               <p className="text-sm text-blue-800">
-                You cannot remove a person who has expenses assigned to them. 
-                Delete the related expenses first if you need to remove someone.
+                {t('people.cannotRemove')}
               </p>
             </div>
           </div>
@@ -207,10 +207,10 @@ const PeoplePage: React.FC = () => {
 
       <ConfirmDialog
         isOpen={deleteConfirm !== null}
-        title="Remove Person"
-        message="Are you sure you want to remove this person from the trip?"
-        confirmText="Remove"
-        cancelText="Cancel"
+        title={t('common.delete')}
+        message={t('people.cannotRemove')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="danger"
         onConfirm={() => deleteConfirm && handleDeletePerson(deleteConfirm)}
         onCancel={() => setDeleteConfirm(null)}
